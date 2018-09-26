@@ -1,21 +1,15 @@
 import React, { Component } from 'react';
 import bip39 from 'bip39';
 import { HDNode, Wallet } from 'ethers';
-import logo from './logo.png';
-import './App.css';
 import resolve from "did-resolver";
 import EthrDID from "ethr-did";
 import { decodeJWT, verifyJWT } from 'did-jwt'
 
-import config from './config/ethereum'
-import { getRpcUrl } from './utils/web3'
+import logo from './logo.png';
+import './App.css';
 
-import resolver from 'ethr-did-resolver'
-resolver()
+import { web3Instance } from './utils/web3'
 
-const rpcUrl = getRpcUrl(config.network, config.infura.apiKeys.ethrDid)
-
-const derivationPath = `m/44'/60'/0'/0'`
 
 class App extends Component {
   constructor(props){
@@ -25,6 +19,8 @@ class App extends Component {
       currentMnemonic: null,
       didDocument: null,
       didOwner: null,
+      derivationPath: `m/44'/60'/0'/0`,
+
       txHashes: [],
       rawJWTs: [],
       signedJWTs: [],
@@ -33,10 +29,6 @@ class App extends Component {
       verifiedJWTs: null,
     }
   }
-
-  ///////////////
-  /// Actions ///
-  ///////////////
 
   generateHdWallet() {
     const mnemonic = bip39.generateMnemonic()
@@ -54,137 +46,120 @@ class App extends Component {
   }
 
   async deriveChildWallet() {
-    const { currentMnemonic, roots } = this.state
+    const { currentMnemonic, roots, derivationPath } = this.state
 
     if(!currentMnemonic) return
 
-    const updatedRootsPromisses = roots.map(async (root) => {
-      if (root.mnemonic === currentMnemonic) {
-        root.addressNodes = root.addressNodes || []
+    const currentRoot = roots.find(root => currentMnemonic === root.mnemonic)
 
-        root.currentAddressNode = root.masterNode.derivePath(`${derivationPath}/${root.addressNodes.length}`)
-        root.currentAddressNode.wallet = this.buildWallet(root.currentAddressNode)
+    currentRoot.addressNodes = currentRoot.addressNodes || []
+    currentRoot.currentAddressNode = currentRoot.masterNode.derivePath(`${derivationPath}/${currentRoot.addressNodes.length}`)
+    currentRoot.currentAddressNode.wallet = this.buildWallet(currentRoot.currentAddressNode)
+    currentRoot.addressNodes.push(currentRoot.currentAddressNode)
 
-        root.addressNodes.push(root.currentAddressNode)
+    try {
+      const newDidOwner = await this.lookupDidOwner(currentRoot.currentAddressNode)
+      const newDidDocument = await this.resolveDidDocument(currentRoot.currentAddressNode)
 
-        await Promise.all([
-          this.lookupDidOwner(root.currentAddressNode),
-          this.resolveDidDocument(root.currentAddressNode)
-        ])
-      }
-      return root
-    })
+      this.setState(prevState => ({
+        roots: prevState.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
+        didOwner: newDidOwner,
+        didDocument: newDidDocument
+      }))
+    } catch (e) {
+      throw e
+    }
 
-    const updatedRoots = await Promise.all(updatedRootsPromisses) 
-
-    this.setState({ roots: updatedRoots })
   }
 
-  async selectMnemonic(selectedMnemonic, isSelected) {
-    if (isSelected) return
-
-    this.setState({ currentMnemonic: selectedMnemonic })
-
-    const { roots } = this.state
+  async selectMnemonic(selectedMnemonic) {
+    const { currentMnemonic, roots } = this.state
+    if (currentMnemonic === selectedMnemonic) return
 
     const selectedRoot = roots.find(root => root.mnemonic === selectedMnemonic)
 
-    if (selectedRoot.currentAddressNode) {
-      await Promise.all([
-        this.lookupDidOwner(selectedRoot.currentAddressNode),
-        this.resolveDidDocument(selectedRoot.currentAddressNode)
-      ])
+    if(!selectedRoot.currentAddressNode){
+      return this.setState({
+        currentMnemonic: selectedMnemonic,
+        didOwner: null,
+        didDocument: null
+      })
     }
-    else { 
-      this.setState({ didOwner: null, didDocument: null })
+
+    try {
+      const newDidOwner = await this.lookupDidOwner(selectedRoot.currentAddressNode)
+      const newDidDocument = await this.resolveDidDocument(selectedRoot.currentAddressNode)
+
+      this.setState(prevState => ({
+        currentMnemonic: selectedMnemonic,
+        roots: prevState.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
+        didOwner: newDidOwner,
+        didDocument: newDidDocument
+      }))
+    } catch (e) {
+      throw e
     }
   }
 
-  async selectAddress(selectedAddressNode, isSelected) {
+  async selectAddress(selectedAddressNode) {
     const { currentMnemonic, roots } = this.state
 
-    let currentAddressNodeUpdate
+    const currentRoot = roots.find(root => currentMnemonic === root.mnemonic)
 
-    const updatedRoots = roots.reduce((res, root) => {
-      return root.mnemonic !== currentMnemonic || isSelected
-        ? [ ...res, root ]
-        : [ ...res, {
-              ...root, 
-              currentAddressNode: (currentAddressNodeUpdate = selectedAddressNode)
-            } 
-          ]
-    }, [])
+    if(currentRoot.currentAddressNode === selectedAddressNode) return
 
-    this.setState({ roots: updatedRoots })
+    try {
+      const newDidOwner = await this.lookupDidOwner(selectedAddressNode)
+      const newDidDocument = await this.resolveDidDocument(selectedAddressNode)
 
-    if (currentAddressNodeUpdate) {
-      await Promise.all([
-        this.resolveDidDocument(currentAddressNodeUpdate),
-        this.lookupDidOwner(currentAddressNodeUpdate)
-      ])
+      this.setState(prevState => ({
+        roots: prevState.map(root => {
+          if(root.mnemonic === currentMnemonic) root.currentAddressNode = selectedAddressNode
+          return root
+        }),
+        didOwner: newDidOwner,
+        didDocument: newDidDocument
+      }))
+    } catch (e) {
+      throw e
     }
   }
 
-  //////////////////
-  /// DID method ///
-  //////////////////
+  buildDid = address => `did:ethr:${address}`
 
-  buildDid(address) {
-    return `did:ethr:${address}`
-  }
-
-  //////////////////////
-  /// Ethers library ///
-  //////////////////////
-
-  buildWallet(addressNode) { 
-    return new Wallet(addressNode.privateKey)
-  }
-
-  ////////////////////////
-  /// Ethr DiD library ///
-  ////////////////////////
+  buildWallet = addressNode => new Wallet(addressNode.privateKey)
 
   buildEthrDid(addressNode) {
-    const wallet = this.buildWallet(addressNode)
+    const wallet = new Wallet(addressNode.privateKey)
 
     return new EthrDID({
-      rpcUrl,
+      web3: web3Instance,
       address: wallet.address,
       privateKey: wallet.privateKey
     })
   }
 
   async resolveDidDocument(addressNode) {
-    let didDocument
+    const ethrDid = this.buildEthrDid(addressNode)
     try {
-      const ethrDid = this.buildEthrDid(addressNode)
-      didDocument = await resolve(ethrDid.did)
-    }
-    catch (err) {
-      didDocument = err
-    }
-    finally {
-      this.setState({ didDocument })
+      return await resolve(ethrDid.did)
+    } catch (e) {
+      throw e
     }
   }
 
   async lookupDidOwner(addressNode) {
-    if(!addressNode) return
-
-    let didOwner
+    const ethrDid = this.buildEthrDid(addressNode)
     try {
-      const ethrDid = this.buildEthrDid(addressNode)
-      didOwner = await ethrDid.lookupOwner()
-    }
-    catch (err) {
-      didOwner = err
-    }
-    finally {
-      this.setState({ didOwner })
+      return await ethrDid.lookupOwner()
+    } catch (e) {
+      throw e
     }
   }
 
+
+
+  // to continue
   async changeDidOwner(addressNode) {
     if(!addressNode || !this.newOwner.value) return
 
