@@ -1,0 +1,145 @@
+.App {
+  display: flex;
+  flex-direction: column;
+}
+
+.App-logo {
+  animation: App-logo-spin infinite 5s linear;
+  height: 120px;
+}
+
+.App-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #ccc;
+  height: 150px;
+  padding: 20px;
+  color: white;
+}
+
+.App-title {
+  font-size: 1.5em;
+}
+
+.control {
+  padding: 20px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.control button {
+  cursor: pointer;
+  padding: 10px;
+  margin: 0 10px;
+}
+
+.w45 {
+  width: 45%;
+}
+
+.bb1 {
+  border-bottom: 1px solid #ccc;
+}
+
+.content {
+  padding: 20px;
+  border-top: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  height: 400px;
+}
+
+.selected-mnemonic, .selected-did, .selected-did-owner, .selected-signedJWT {
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 12px;
+}
+
+.mnemonic, .did, .did-owner {
+  margin-top: 5px;
+  font-size: 14px;
+  color: dodgerblue
+}
+
+.signedJWT {
+  width: 100%;
+  margin-top: 5px;
+  font-size: 14px;
+  word-wrap: break-word;
+  color: dodgerblue
+}
+
+.common-line {
+  width: calc(100% - 40px);
+  padding: 20px;
+  border-bottom: 1px solid #ccc;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  padding: 0 20px;
+  height: 40px;
+  background-color:beige
+}
+
+.wrap {
+  width: 100%;
+  height: calc(100% - 40px);
+  overflow: scroll;
+}
+
+.selected {
+  background: aquamarine;
+}
+
+.did-common {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-left: 1px solid #ccc;
+}
+
+
+
+.jwt-list, .tx-hash-list {
+  width: 100%;
+  border-left: none;
+}
+
+.mnemonic-item, .did-item {
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.mnemonic-list {
+  width: 50%;
+  border-left: none;
+}
+
+.did-list {
+  width: 50%;
+}
+
+.mnemonic-did-content, .did-document, .jwt-signed, .jwt-decoded, .jwt-verified, .tx-hash {
+  width: 100%;
+  border: 1px solid #ccc;
+  display: flex;
+  flex: 1;
+}
+
+@keyframes App-logo-spin {
+  0% { transform: rotateY(0deg); }
+  40% { transform: rotateY(170deg); }
+  60% { transform: rotateY(190deg); }
+  100% { transform: rotateY(360deg); }
+}

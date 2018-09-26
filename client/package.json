@@ -1,0 +1,28 @@
+{
+  "name": "my-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "bip39": "^2.5.0",
+    "did-jwt": "0.0.8",
+    "did-resolver": "0.0.4",
+    "ethereumjs-util": "^5.2.0",
+    "ethereumjs-wallet": "^0.6.2",
+    "ethers": "^3.0.27",
+    "ethr-did": "^1.0.0",
+    "ethr-did-resolver": "^0.1.1",
+    "ganache-cli": "^6.1.8",
+    "hdkey": "^1.1.0",
+    "react": "^16.5.0",
+    "react-dom": "^16.5.0",
+    "react-scripts": "1.1.5",
+    "web3": "^1.0.0-beta.36"
+  },
+  "scripts": {
+    "env": "ganache-cli",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
