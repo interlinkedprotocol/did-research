@@ -62,7 +62,7 @@ class App extends Component {
       const newDidDocument = await this.resolveDidDocument(currentRoot.currentAddressNode)
 
       this.setState(prevState => ({
-        roots: prevState.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
+        roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
         didOwner: newDidOwner,
         didDocument: newDidDocument
       }))
@@ -92,7 +92,7 @@ class App extends Component {
 
       this.setState(prevState => ({
         currentMnemonic: selectedMnemonic,
-        roots: prevState.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
+        roots: prevState.roots.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
         didOwner: newDidOwner,
         didDocument: newDidDocument
       }))
@@ -113,7 +113,7 @@ class App extends Component {
       const newDidDocument = await this.resolveDidDocument(selectedAddressNode)
 
       this.setState(prevState => ({
-        roots: prevState.map(root => {
+        roots: prevState.roots.map(root => {
           if(root.mnemonic === currentMnemonic) root.currentAddressNode = selectedAddressNode
           return root
         }),
@@ -157,25 +157,20 @@ class App extends Component {
     }
   }
 
-
-
-  // to continue
   async changeDidOwner(addressNode) {
     if(!addressNode || !this.newOwner.value) return
 
-    let txHash
     try {
       const ethrDid = this.buildEthrDid(addressNode)
-      txHash = await ethrDid.changeOwner(this.newOwner.value)
+      await ethrDid.changeOwner(this.newOwner.value)
     }
     catch (err) {
-      txHash = err
-    }
-    finally {
-      this.setState(prevState => ({ txHashes: [ ...prevState.txHashes, txHash ] }))
+      throw err
     }
   }
 
+
+  // to continue
   async setAttribute(addressNode) {
     if(!addressNode || !this.attrKey.value || !this.attrValue.value) return
 
@@ -309,7 +304,7 @@ class App extends Component {
     } = this.state;
 
     const currentRoot = roots.find(root => root.mnemonic === currentMnemonic)
-    const currentAddressNode = currentRoot ? currentRoot.currentAddressNode : undefined
+    const currentAddressNode = currentRoot && currentRoot.currentAddressNode
 
     return (
       <div className="App">
@@ -438,20 +433,6 @@ class App extends Component {
             </div>
           </div>
         </div>
-        
-        <div className="content">
-          <div className="tx-hash did-common">
-            <div className="tx-hash-list did-common">
-              <div className="common-line title">Tx Hashes</div>
-              <div className="wrap">
-                { 
-                  txHashes.map(txHash => this.renderJSON(txHash)) 
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     );
   }
