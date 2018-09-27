@@ -2,6 +2,9 @@ FROM node:8 as builder
 
 WORKDIR /opt/app
 
+ENV REACT_APP_NETWORK_HOST %REACT_APP_NETWORK_HOST%
+ENV REACT_APP_BLOCKCHAIN_PORT %REACT_APP_BLOCKCHAIN_PORT%
+
 COPY package.json package-lock.json* ./
 RUN npm install
 

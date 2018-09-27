@@ -12,9 +12,8 @@ services:
     ports:
       - 3010:80
     environment:
-      - CONTAINER_HOSTNAME=client
       - PORT=80
-      - REACT_APP_BLOCKCHAIN_HOST=$BLOCKCHAIN_HOST
+      - REACT_APP_NETWORK_HOST=$NETWORK_HOST
       - REACT_APP_BLOCKCHAIN_PORT=$BLOCKCHAIN_PORT
     volumes:
       - ${MOUNT_VOLUME:-./client:/opt/app}

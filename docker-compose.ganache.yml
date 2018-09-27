@@ -7,8 +7,6 @@ services:
     container_name: interlink-ganache
     restart: always
     command: -h 0.0.0.0 -m 'suffer stereo mail face prefer entire flock divert party convince pond craft'
-    environment:
-      - CONTAINER_HOSTNAME=ganache
     volumes:
       - ./blockchaindata:/data/blockchain
       - ~/.bash_history:/root/.bash_history
