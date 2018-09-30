@@ -3,8 +3,7 @@ import bip39 from 'bip39';
 import { HDNode, Wallet } from 'ethers';
 import resolve from "did-resolver";
 import EthrDID from "ethr-did";
-import { decodeJWT, verifyJWT } from 'did-jwt'
-
+import { decodeJWT } from 'did-jwt'
 import logo from './logo.png';
 import './App.css';
 
@@ -20,13 +19,8 @@ class App extends Component {
       didDocument: null,
       didOwner: null,
       derivationPath: `m/44'/60'/0'/0`,
-
-      txHashes: [],
-      rawJWTs: [],
-      signedJWTs: [],
-      currentSignedJWT: null,
       decodedJWT: null,
-      verifiedJWTs: null,
+      verifiedJWT: null
     }
   }
 
@@ -54,12 +48,16 @@ class App extends Component {
 
     currentRoot.addressNodes = currentRoot.addressNodes || []
     currentRoot.currentAddressNode = currentRoot.masterNode.derivePath(`${derivationPath}/${currentRoot.addressNodes.length}`)
+    currentRoot.currentAddressNode.txHashes = []
+    currentRoot.currentAddressNode.signedJWTs = []
+    currentRoot.currentAddressNode.currentSignedJWT = null
     currentRoot.currentAddressNode.wallet = this.buildWallet(currentRoot.currentAddressNode)
+    currentRoot.currentAddressNode.ethrDid = this.buildEthrDid(currentRoot.currentAddressNode.wallet)
     currentRoot.addressNodes.push(currentRoot.currentAddressNode)
 
     try {
-      const newDidOwner = await this.lookupDidOwner(currentRoot.currentAddressNode)
-      const newDidDocument = await this.resolveDidDocument(currentRoot.currentAddressNode)
+      const newDidOwner = await currentRoot.currentAddressNode.ethrDid.lookupOwner()
+      const newDidDocument = await resolve(currentRoot.currentAddressNode.ethrDid.did)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
@@ -87,8 +85,8 @@ class App extends Component {
     }
 
     try {
-      const newDidOwner = await this.lookupDidOwner(selectedRoot.currentAddressNode)
-      const newDidDocument = await this.resolveDidDocument(selectedRoot.currentAddressNode)
+      const newDidOwner = await selectedRoot.currentAddressNode.ethrDid.lookupOwner()
+      const newDidDocument = await resolve(selectedRoot.currentAddressNode.ethrDid.did)
 
       this.setState(prevState => ({
         currentMnemonic: selectedMnemonic,
@@ -102,15 +100,15 @@ class App extends Component {
   }
 
   async selectAddress(selectedAddressNode) {
-    const { currentMnemonic, roots } = this.state
+    const { currentMnemonic } = this.state
 
-    const currentRoot = roots.find(root => currentMnemonic === root.mnemonic)
+    const currentAddressNode = this.getCurrentAddressNode()
 
-    if(currentRoot.currentAddressNode === selectedAddressNode) return
+    if(currentAddressNode === selectedAddressNode) return
 
     try {
-      const newDidOwner = await this.lookupDidOwner(selectedAddressNode)
-      const newDidDocument = await this.resolveDidDocument(selectedAddressNode)
+      const newDidOwner = await selectedAddressNode.ethrDid.lookupOwner()
+      const newDidDocument = await resolve(selectedAddressNode.ethrDid.did)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
@@ -129,165 +127,128 @@ class App extends Component {
 
   buildWallet = addressNode => new Wallet(addressNode.privateKey)
 
-  buildEthrDid(addressNode) {
-    const wallet = new Wallet(addressNode.privateKey)
+  buildEthrDid = wallet => new EthrDID({
+    web3: web3Instance,
+    address: wallet.address,
+    privateKey: wallet.privateKey
+  })
 
-    return new EthrDID({
-      web3: web3Instance,
-      address: wallet.address,
-      privateKey: wallet.privateKey
-    })
-  }
+  async changeDidOwner() {
+    const { currentMnemonic } = this.state
+    const currentAddressNode = this.getCurrentAddressNode()
 
-  async resolveDidDocument(addressNode) {
-    const ethrDid = this.buildEthrDid(addressNode)
+    if(!currentAddressNode || !this.newOwner.value) return
+
     try {
-      return await resolve(ethrDid.did)
-    } catch (e) {
-      throw e
+      const txHash = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)
+
+      this.setState(prevState => ({
+        roots: prevState.roots.map(root => {
+          if(root.mnemonic === currentMnemonic) {
+            root.currentAddressNode.txHashes.push(txHash)
+            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
+          }
+          return root
+        })
+      }))
+    } catch (err) {
+      throw err
     }
   }
 
-  async lookupDidOwner(addressNode) {
-    const ethrDid = this.buildEthrDid(addressNode)
+  async setAttribute() {
+    const { currentMnemonic } = this.state
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    if(!currentAddressNode || !this.attrKey.value || !this.attrKey.value) return
+
     try {
-      return await ethrDid.lookupOwner()
-    } catch (e) {
-      throw e
+      const txHash = await currentAddressNode.ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
+
+      this.setState(prevState => ({
+        roots: prevState.roots.map(root => {
+          if(root.mnemonic === currentMnemonic) {
+            root.currentAddressNode.txHashes.push(txHash)
+            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
+          }
+          return root
+        })
+      }))
+    } catch (err) {
+      throw err
     }
   }
 
-  async changeDidOwner(addressNode) {
-    if(!addressNode || !this.newOwner.value) return
+  getCurrentAddressNode() {
+    const { currentMnemonic, roots } = this.state
+
+    const currentRoot = roots.find(root => root.mnemonic === currentMnemonic)
+    return currentRoot && currentRoot.currentAddressNode
+  }
+
+  async signJWT() {
+    const { currentMnemonic } = this.state
+
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || !this.rawJwt.value) return
 
     try {
-      const ethrDid = this.buildEthrDid(addressNode)
-      await ethrDid.changeOwner(this.newOwner.value)
+      const signedJWT = await currentAddressNode.ethrDid.signJWT(this.rawJwt.value)
+
+      this.setState(prevState => ({
+        roots: prevState.roots.map(root => {
+          if(root.mnemonic === currentMnemonic) {
+            root.currentAddressNode.signedJWTs.push(signedJWT)
+            root.currentAddressNode.currentSignedJWT = signedJWT
+            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
+          }
+          return root
+        })
+      }))
+    } catch (err) {
+      throw err
+    }
+  }
+
+  async decodeJWT() {
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || !currentAddressNode.currentSignedJWT) return
+
+    try {
+      const decodedJWT = await decodeJWT(currentAddressNode.currentSignedJWT)
+      this.setState({ decodedJWT })
+    } catch (err) {
+      throw err
+    }
+  }
+
+  async verifyJWT() {
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || !currentAddressNode.currentSignedJWT) return
+
+    try {
+      const verifiedJWT = await currentAddressNode.ethrDid.verifyJWT(currentAddressNode.currentSignedJWT)
+      this.setState({ verifiedJWT })
     }
     catch (err) {
       throw err
     }
   }
 
+  selectSignedJWT(signedJWT) {
+    const { currentMnemonic } = this.state
 
-  // to continue
-  async setAttribute(addressNode) {
-    if(!addressNode || !this.attrKey.value || !this.attrValue.value) return
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || currentAddressNode.currentSignedJWT === signedJWT) return
 
-    let txHash
-    try {
-      const ethrDid = this.buildEthrDid(addressNode)
-      txHash = ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
-    }
-    catch (err) {
-      txHash = err
-    }
-    finally {
-      this.setState(prevState => ({ txHashes: [ ...prevState.txHashes, txHash ] }))
-    }
-  }
+    currentAddressNode.currentSignedJWT = signedJWT
 
-  async signJWT(addressNode) {
-    if(!addressNode || !this.rawJwt.value) return
-
-    let signedJWT
-    try {
-      const ethrDid = this.buildEthrDid(addressNode)
-      signedJWT = await ethrDid.signJWT(this.rawJwt.value)
-    }
-    catch (err) {
-      signedJWT = err
-    }
-    finally {
-      this.setState(prevState => ({ 
-        signedJWTs: [ ...prevState.signedJWTs, signedJWT ],
-        currentSignedJWT: signedJWT
-      }))
-    }
-  }
-
-  async decodeJWT(currentSignedJWT) {
-    if (!currentSignedJWT) return
-
-    let decodedJWT
-    try {
-      decodedJWT = await decodeJWT(currentSignedJWT)
-    }
-    catch (err) {
-      decodedJWT = err
-    }
-    finally {
-      this.setState({ decodedJWT })
-    }
-  }
-
-  async verifyJWT(currentSignedJWT, addressNode) {
-    if(!currentSignedJWT) return
-
-    let payload, issuer
-    payload, issuer = await verifyJWT(currentSignedJWT)
-
-    try {
-    // const ethrDid = this.buildEthrDid(addressNode)
-    // payload, issuer = await ethrDid.verifyJWT(currentSignedJWT)
-    // payload, issuer = await verifyJWT(currentSignedJWT)
-    }
-    catch (err) {
-      payload = err
-      issuer = null
-    }
-    finally {
-      this.setState({ verifiedJWT: { payload, issuer } })
-    }
-  }
-
-  selectSignedJWT(selectedSignedJWT, isSelected) {
-    if (isSelected) return
-
-    this.setState({ currentSignedJWT: selectedSignedJWT })
-  }
-
-  //////////////
-  /// Render ///
-  //////////////
-
-  renderMnemonic(mnemonic, isSelected) {
-    return (
-      <div
-        className={ `mnemonic-item common-line ${isSelected && 'selected'}` }
-        onClick={ () => this.selectMnemonic(mnemonic, isSelected) }
-        key={ mnemonic }>
-        { mnemonic }
-      </div>
-    )
-  }
-
-  renderDid(addressNode, isSelected) {
-    return (
-      <div
-        className={ `did-item common-line ${isSelected && 'selected'}` }
-        onClick={ () => this.selectAddress(addressNode, isSelected) }
-        key={ addressNode.wallet.address }>
-        { this.buildDid(addressNode.wallet.address) }
-      </div>
-    )
-  }
-
-  renderSignedJWT(jwt, isSelected) {
-    return (
-      <div
-        className={ `node-mnemonics common-line ${isSelected && 'selected'}` }
-        onClick={ () => this.selectSignedJWT(jwt, isSelected) }
-        key={ jwt }>
-        { jwt }
-      </div>
-    )
-  }
-
-  renderJSON(json) {
-    return (
-      <pre>{ JSON.stringify(json, null, 2) }</pre>
-    )
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) root.currentAddressNode = currentAddressNode
+        return root
+      })
+    }))
   }
 
   render() {
@@ -296,9 +257,6 @@ class App extends Component {
       roots,
       didOwner,
       didDocument,
-      txHashes,
-      signedJWTs,
-      currentSignedJWT,
       decodedJWT,
       verifiedJWT
     } = this.state;
@@ -328,11 +286,7 @@ class App extends Component {
           <div className="selected-did">
             <span>Selected DID:</span>
             <div className="did">
-              {
-                currentAddressNode
-                && this.buildDid(currentAddressNode.wallet.address)
-                || 'No DID selected'
-              }
+              { currentAddressNode ? this.buildDid(currentAddressNode.wallet.address) : 'No DID selected' }
             </div>
           </div>
 
@@ -346,19 +300,30 @@ class App extends Component {
             <div className="mnemonic-list did-common">
               <div className="common-line title">Mnemonic</div>
               <div className="wrap">
-                { 
-                  roots.map(root => this.renderMnemonic(root.mnemonic, (root.mnemonic === currentMnemonic))) 
+                {
+                  roots.map(root =>
+                    <div
+                      key={root.mnemonic}
+                      className={`mnemonic-item common-line ${root.mnemonic === currentMnemonic ? 'selected' : ''}`}
+                      onClick={() => this.selectMnemonic(root.mnemonic)}>
+                      {root.mnemonic}
+                    </div>
+                  )
                 }
               </div>
             </div>
+
             <div className="did-list did-common">
               <div className="common-line title">DID</div>
               <div className="wrap">
                 {
-                  currentRoot
-                  && currentRoot.addressNodes
-                  && currentRoot.addressNodes.map(
-                    addressNode => this.renderDid(addressNode, (addressNode === currentRoot.currentAddressNode))
+                  currentRoot && currentRoot.addressNodes && currentRoot.addressNodes.map(addressNode =>
+                    <div
+                      key={addressNode.wallet.address}
+                      className={`did-item common-line ${addressNode === currentRoot.currentAddressNode ? 'selected' : ''}`}
+                      onClick={() => this.selectAddress(addressNode)}>
+                      {this.buildDid(addressNode.wallet.address)}
+                    </div>
                   )
                 }
               </div>
@@ -371,41 +336,46 @@ class App extends Component {
           <div className="did-document did-common">
             <div className="common-line title">DID Document</div>
             <div className="wrap">
-              { 
-                didDocument && this.renderJSON(didDocument) 
-              }
+              { didDocument && <pre>{ JSON.stringify(didDocument, null, 2) }</pre> }
             </div>
           </div>
         </div>
 
         <div className="control">
-          <button onClick={ () => this.changeDidOwner(currentAddressNode) }>Change DID Owner</button>
-          <input ref={ el => this.newOwner = el } type="text" />
+          <button onClick={() => this.changeDidOwner()}>Change DID Owner</button>
+          <input ref={el => this.newOwner = el} type="text" />
 
-          <button onClick={ () => this.setAttribute(currentAddressNode) }>Set DID Attribute</button>
-          <input ref={ el => this.attrKey = el } type="text" />
-          <input ref={ el => this.attrValue = el } type="text" />
+          <button onClick={() => this.setAttribute()}>Set DID Attribute</button>
+          <input ref={el => this.attrKey = el} type="text" />
+          <input ref={el => this.attrValue = el} type="text" />
         </div>
 
         <div className="control">
-          <button onClick={ () => this.signJWT(currentAddressNode) }>Sign JWT</button>
-          <input ref={ el => this.rawJwt = el } type="text" />
+          <button onClick={() => this.signJWT()}>Sign JWT</button>
+          <input ref={el => this.rawJwt = el} type="text" />
 
-          <button onClick={ () => this.decodeJWT(currentSignedJWT) }>Decode JWT</button>
-          <button onClick={ () => this.verifyJWT(currentSignedJWT, currentAddressNode) }>Verify JWT</button>
+          <button onClick={() => this.decodeJWT()}>Decode JWT</button>
+          <button onClick={() => this.verifyJWT()}>Verify JWT</button>
         </div>
 
         <div className="content">
           <div className="selected-signedJWT">
             <span>Selected Signed JWT:</span>
-            <div className="signedJWT">{ currentSignedJWT || 'No Signed JWT selected' }</div>
+            <div className="signedJWT">{ currentAddressNode && currentAddressNode.currentSignedJWT || 'No Signed JWT selected' }</div>
           </div>
           <div className="jwt-signed">
             <div className="jwt-list did-common">
               <div className="common-line title">Signed JWT</div>
               <div className="wrap">
-                { 
-                  signedJWTs.map(signedJWT => this.renderSignedJWT(signedJWT, (signedJWT === currentSignedJWT))) 
+                {
+                  currentAddressNode && currentAddressNode.signedJWTs.map(signedJWT =>
+                    <div
+                      key={signedJWT}
+                      className={`node-mnemonics common-line ${currentAddressNode.currentSignedJWT === signedJWT ? 'selected' : ''}`}
+                      onClick={ () => this.selectSignedJWT(signedJWT) }>
+                      { signedJWT }
+                    </div>
+                  )
                 }
               </div>
             </div>
@@ -416,9 +386,7 @@ class App extends Component {
           <div className="jwt-decoded did-common">
             <div className="common-line title">Decoded JWT</div>
             <div className="wrap">
-              {
-                decodedJWT && this.renderJSON(decodedJWT)
-              }
+              { decodedJWT && <pre>{ JSON.stringify(decodedJWT, null, 2) }</pre> }
             </div>
           </div>
         </div>
@@ -427,9 +395,7 @@ class App extends Component {
           <div className="jwt-verified did-common">
             <div className="common-line title">Verified JWT</div>
             <div className="wrap">
-              { 
-                verifiedJWT && this.renderJSON(verifiedJWT)
-              }
+              { verifiedJWT && <pre>{ JSON.stringify(verifiedJWT, null, 2) }</pre> }
             </div>
           </div>
         </div>

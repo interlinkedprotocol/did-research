@@ -9,6 +9,8 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "^0.6.2",
     "ethers": "^3.0.27",
+    "ethjs-contract": "^0.2.3",
+    "ethjs-query": "^0.3.8",
     "ethr-did": "^1.0.0",
     "ethr-did-resolver": "^0.1.1",
     "ganache-cli": "^6.1.8",

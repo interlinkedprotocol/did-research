@@ -8,7 +8,7 @@ services:
       context: ./geth
     container_name: interlink-geth
     restart: always
-    command: nohup geth --testnet --rpc --rpcapi 'eth,net,web3' --rpccorsdomain '*' --rpcaddr 0.0.0.0 --rpcport 8545 --fast --bootnodes 'enode://6332792c4a00e3e4ee0926ed89e0d27ef985424d97b6a45bf0f23e51f0dcb5e66b875777506458aea7af6f9e4ffb69f43f3778ee73c81ed9d34c51c4b16b0b0f@52.232.243.152:30303,enode://94c15d1b9e2fe7ce56e458b9a3b672ef11894ddedd0c6f247e0f1d3487f52b66208fb4aeb8179fce6e3a749ea93ed147c37976d67af557508d199d9594c35f09@192.81.208.223:30303'
+    command: nohup geth --testnet --rpc --rpcapi 'eth,net,web3,personal' --rpccorsdomain '*' --rpcaddr 0.0.0.0 --rpcport 8545 --fast --bootnodes 'enode://053d2f57829e5785d10697fa6c5333e4d98cc564dbadd87805fd4fedeb09cbcb642306e3a73bd4191b27f821fb442fcf964317d6a520b29651e7dd09d1beb0ec@79.98.29.154:30303,enode://6c509b9cae1036b4514c978e1b3b4f1b718ae1349b65a681603eb2c848eed671a52fa7c99ebeaf1a2fdca568cd74ff762db7fa02a6b2b82d9fd3da27686ba937@155.4.110.100:30303,enode://9683a29b13c7190cfd63cccba4bcb62d7b710da0b1c4bff2c4b8bcf129127d7b3f591163a58449d7f66200db3c208d06b9e9a8bea69be4a72e1728a83d703063@35.226.161.198:30303'
     volumes:
       - ./blockchaindata:/data/blockchain
       - ~/.bash_history:/root/.bash_history
