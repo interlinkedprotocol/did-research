@@ -1,14 +1,15 @@
 import React, { Component } from 'react';
-import bip39 from 'bip39';
+import { fromWei } from 'ethjs-unit'
 import { HDNode, Wallet } from 'ethers';
-import resolve from "did-resolver";
-import EthrDID from "ethr-did";
+import bip39 from 'bip39';
+import EthrDID from './utils/ethDid'
+import resolve from 'did-resolver';
 import { decodeJWT } from 'did-jwt'
+
 import logo from './logo.png';
 import './App.css';
 
-import { web3Instance } from './utils/web3'
-
+import { ethInstance, etherscanBaseUrl } from './utils/connect'
 
 class App extends Component {
   constructor(props){
@@ -18,10 +19,29 @@ class App extends Component {
       currentMnemonic: null,
       didDocument: null,
       didOwner: null,
+      didBalance: null,
       derivationPath: `m/44'/60'/0'/0`,
       decodedJWT: null,
       verifiedJWT: null
     }
+  }
+
+  recoverHdWallet() {
+    if(!this.mnemonic.value) return
+
+    const mnemonic = this.mnemonic.value
+    const masterNode = HDNode.fromMnemonic(mnemonic)
+
+    this.setState(prevState => ({
+      roots: [
+        ...prevState.roots,
+        { mnemonic, masterNode }
+      ],
+      currentMnemonic: mnemonic,
+      didDocument: null,
+      didOwner: null,
+      didBalance: null
+    }))
   }
 
   generateHdWallet() {
@@ -35,7 +55,8 @@ class App extends Component {
       ],
       currentMnemonic: mnemonic,
       didDocument: null,
-      didOwner: null
+      didOwner: null,
+      didBalance: null
     }))
   }
 
@@ -51,18 +72,22 @@ class App extends Component {
     currentRoot.currentAddressNode.txHashes = []
     currentRoot.currentAddressNode.signedJWTs = []
     currentRoot.currentAddressNode.currentSignedJWT = null
-    currentRoot.currentAddressNode.wallet = this.buildWallet(currentRoot.currentAddressNode)
+    currentRoot.currentAddressNode.wallet = new Wallet(currentRoot.currentAddressNode.privateKey)
+    console.log('privateKey ' + currentRoot.currentAddressNode.wallet.privateKey)
+    console.log('publicKey ' + currentRoot.currentAddressNode.publicKey)
     currentRoot.currentAddressNode.ethrDid = this.buildEthrDid(currentRoot.currentAddressNode.wallet)
     currentRoot.addressNodes.push(currentRoot.currentAddressNode)
 
     try {
       const newDidOwner = await currentRoot.currentAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(currentRoot.currentAddressNode.ethrDid.did)
+      const newDidBalance = await ethInstance.getBalance(currentRoot.currentAddressNode.wallet.address, 'latest')
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
         didOwner: newDidOwner,
-        didDocument: newDidDocument
+        didDocument: newDidDocument,
+        didBalance: newDidBalance
       }))
     } catch (e) {
       throw e
@@ -80,19 +105,22 @@ class App extends Component {
       return this.setState({
         currentMnemonic: selectedMnemonic,
         didOwner: null,
-        didDocument: null
+        didDocument: null,
+        didBalance: null
       })
     }
 
     try {
       const newDidOwner = await selectedRoot.currentAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(selectedRoot.currentAddressNode.ethrDid.did)
+      const newDidBalance = await ethInstance.getBalance(selectedRoot.currentAddressNode.wallet.address, 'latest')
 
       this.setState(prevState => ({
         currentMnemonic: selectedMnemonic,
         roots: prevState.roots.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
         didOwner: newDidOwner,
-        didDocument: newDidDocument
+        didDocument: newDidDocument,
+        didBalance: newDidBalance
       }))
     } catch (e) {
       throw e
@@ -109,6 +137,7 @@ class App extends Component {
     try {
       const newDidOwner = await selectedAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(selectedAddressNode.ethrDid.did)
+      const newDidBalance = await ethInstance.getBalance(currentAddressNode.wallet.address, 'latest') 
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
@@ -116,19 +145,17 @@ class App extends Component {
           return root
         }),
         didOwner: newDidOwner,
-        didDocument: newDidDocument
+        didDocument: newDidDocument,
+        didBalance: newDidBalance
       }))
     } catch (e) {
       throw e
     }
   }
 
-  buildDid = address => `did:ethr:${address}`
-
-  buildWallet = addressNode => new Wallet(addressNode.privateKey)
+  did = address => `did:ethr:${address}`
 
   buildEthrDid = wallet => new EthrDID({
-    web3: web3Instance,
     address: wallet.address,
     privateKey: wallet.privateKey
   })
@@ -140,7 +167,7 @@ class App extends Component {
     if(!currentAddressNode || !this.newOwner.value) return
 
     try {
-      const txHash = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)
+      const txHash = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)      
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
@@ -257,6 +284,7 @@ class App extends Component {
       roots,
       didOwner,
       didDocument,
+      didBalance,
       decodedJWT,
       verifiedJWT
     } = this.state;
@@ -272,6 +300,8 @@ class App extends Component {
         </header>
 
         <div className="control">
+          <input ref={el => this.mnemonic = el} type="text" />
+          <button onClick={() => this.recoverHdWallet()}>Recover HD Wallet</button>
           <button onClick={ () => this.generateHdWallet() }>Generate HD Wallet</button>
           <button onClick={ () => this.deriveChildWallet() }>Derive new DID</button>
         </div>
@@ -286,13 +316,20 @@ class App extends Component {
           <div className="selected-did">
             <span>Selected DID:</span>
             <div className="did">
-              { currentAddressNode ? this.buildDid(currentAddressNode.wallet.address) : 'No DID selected' }
+              { currentAddressNode ? this.did(currentAddressNode.wallet.address) : 'No DID selected' }
             </div>
           </div>
 
           <div className="selected-did-owner">
             <span>DID Owner:</span>
             <div className="did-owner">{ didOwner || 'No DID selected'}</div>
+          </div>
+
+          <div className="selected-did-balance">
+            <span>DID Balance:</span>
+            <div className="did-balance">
+              { didBalance !== null && didBalance !== undefined ? `${fromWei(didBalance, 'ether')} Eth` : 'No DID selected' }
+            </div>
           </div>
 
           <div className="mnemonic-did-content">
@@ -322,7 +359,7 @@ class App extends Component {
                       key={addressNode.wallet.address}
                       className={`did-item common-line ${addressNode === currentRoot.currentAddressNode ? 'selected' : ''}`}
                       onClick={() => this.selectAddress(addressNode)}>
-                      {this.buildDid(addressNode.wallet.address)}
+                      {this.did(addressNode.wallet.address)}
                     </div>
                   )
                 }
@@ -349,6 +386,24 @@ class App extends Component {
           <input ref={el => this.attrKey = el} type="text" />
           <input ref={el => this.attrValue = el} type="text" />
         </div>
+
+        <div className="control"></div>
+          <div className="tx-hashes did-common">
+              <div className="common-line title">TX Hashes</div>
+              <div className="wrap">
+                {
+                  currentAddressNode && currentAddressNode.txHashes.map(txHash =>
+                    <a
+                      key={txHash}
+                      href={`${etherscanBaseUrl}/${txHash}`}
+                      className={'did-item common-line'}
+                      target="_blank">
+                      {txHash}
+                    </a>
+                  )
+                }
+              </div>
+          </div>
 
         <div className="control">
           <button onClick={() => this.signJWT()}>Sign JWT</button>

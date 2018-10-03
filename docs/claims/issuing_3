@@ -1,0 +1,10 @@
+@startuml
+
+actor Holder
+actor Issuer
+
+Holder -> Issuer : send raw claim (POST)
+Issuer -> Issuer : sign raw claim
+Issuer -> Holder : send signed claim
+
+@enduml
