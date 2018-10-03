@@ -1,0 +1,26 @@
+version: '3.4'
+
+services:
+
+  client:
+    image: ${IMAGE_NAME:-interlink-client}
+    build:
+      context: ${BUILD_DIR:-./client}
+    container_name: interlink-client
+    restart: always
+    command: ${COMMAND:-nginx-fe}
+    ports:
+      - 3010:80
+    environment:
+      - PORT=80
+      - REACT_APP_NETWORK_HOST=$NETWORK_HOST
+      - REACT_APP_BLOCKCHAIN_PORT=$BLOCKCHAIN_PORT
+    volumes:
+      - ${MOUNT_VOLUME:-./client:/opt/app}
+      - ~/.bash_history:/root/.bash_history
+      - ./tools/.bashrc:/root/.bashrc
+
+networks:
+  default:
+    external:
+      name: interlink
