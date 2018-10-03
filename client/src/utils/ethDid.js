@@ -30,20 +30,20 @@ function attributeToHex (key, value) {
   return `0x${Buffer.from(value).toString('hex')}`
 }
 
-export function createKeyPair () {
-  const kp = secp256k1.genKeyPair()
-  const publicKey = kp.getPublic('hex')
-  const privateKey = kp.getPrivate('hex')
-  const address = toEthereumAddress(publicKey)
-  return {address, privateKey}
-}
-
 const commonTxData = {
   to: REGISTRY,
   contractABI: DidRegistryABI
 }
 
 class EthrDID {
+  static createKeyPair () {
+    const kp = secp256k1.genKeyPair()
+    const publicKey = kp.getPublic('hex')
+    const privateKey = kp.getPrivate('hex')
+    const address = toEthereumAddress(publicKey)
+    return {address, privateKey}
+  }
+
   constructor (conf = {}) {
     if (!conf.address) throw new Error('No address is set for EthrDid')
 
@@ -51,9 +51,10 @@ class EthrDID {
     this.did = `did:ethr:${this.address}`
 
     if (conf.privateKey) {
-      this.privateKey = conf.privateKey // TODO
       this.signer = SimpleSigner(conf.privateKey)
     }
+
+    this.withPrivateKey = callback => (...args) => callback(conf.privateKey, ...args)
   }
 
   async lookupOwner (cache = true) {
@@ -65,9 +66,9 @@ class EthrDID {
   async changeOwner (newOwner) {
     const owner = await this.lookupOwner()
     const txData = { ...commonTxData, from: owner, methodName: 'changeOwner',  params: [this.address, newOwner] }
-    const txHash = await sendFundedTransaction(txData, this.privateKey) // TODO
+    const txResult = await this.withPrivateKey(sendFundedTransaction)(txData)
     this.owner = newOwner
-    return txHash
+    return txResult
   }
 
   async addDelegate (delegate, options = {}) {
@@ -89,7 +90,7 @@ class EthrDID {
 
   // Create a temporary signing delegate able to sign JWT on behalf of identity
   async createSigningDelegate (delegateType = Secp256k1VerificationKey2018, expiresIn = 86400) {
-    const kp = createKeyPair()
+    const kp = EthrDID.createKeyPair()
     this.signer = SimpleSigner(kp.privateKey)
     const txHash = await this.addDelegate(kp.address, {delegateType, expiresIn})
     return {kp, txHash}
@@ -106,6 +107,6 @@ class EthrDID {
     return verifyJWT(jwt, {audience})
   }
 }
-EthrDID.createKeyPair = createKeyPair
-// module.exports = EthrDID
+
+
 export default EthrDID

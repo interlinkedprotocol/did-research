@@ -87,7 +87,6 @@
   justify-content: center;
   align-items: center;
   font-weight: bold;
-  padding: 20 20px;
   height: 40px;
   background-color:beige
 }
@@ -103,15 +102,12 @@
 }
 
 .did-common {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  border-left: 1px solid #ccc;
-}
-
-.jwt-list, .tx-hashes {
-  width: 100%;
-  border-left: none;
+  flex: 1;
+  border: 1px solid #ccc;
 }
 
 .mnemonic-item, .did-item {
@@ -119,20 +115,26 @@
   font-size: 10px;
 }
 
-.mnemonic-list {
-  width: 50%;
-  border-left: none;
-}
-
-.did-list {
-  width: 50%;
-}
-
-.mnemonic-did-content, .did-document, .jwt-signed, .jwt-decoded, .jwt-verified {
-  width: 100%;
-  border: 1px solid #ccc;
+.mnemonic-did-content {
   display: flex;
   flex: 1;
+}
+
+.w-50 {
+  width: 50%;
+}
+
+.dflex {
+  display: flex;
+  justify-content: space-between;
+}
+
+.green {
+  color: green;
+}
+
+.red {
+  color: red;
 }
 
 @keyframes App-logo-spin {

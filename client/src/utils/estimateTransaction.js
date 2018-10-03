@@ -46,8 +46,6 @@ export function getBaseFee (rawTx, homestead = true) {
 export function getUpfrontCost (rawTx) {
   if (!rawTx.gasLimit || !rawTx.gasPrice) throw new Error('Missing required parameter')
 
-  console.log('rawTx.value', rawTx.value ? rawTx.value.toString() : rawTx.value)
-
   return new BN(rawTx.gasLimit)
     .imul(new BN(rawTx.gasPrice))
     .iadd(new BN(rawTx.value))

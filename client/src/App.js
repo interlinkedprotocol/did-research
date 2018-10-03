@@ -69,12 +69,10 @@ class App extends Component {
 
     currentRoot.addressNodes = currentRoot.addressNodes || []
     currentRoot.currentAddressNode = currentRoot.masterNode.derivePath(`${derivationPath}/${currentRoot.addressNodes.length}`)
-    currentRoot.currentAddressNode.txHashes = []
+    currentRoot.currentAddressNode.txResults = []
     currentRoot.currentAddressNode.signedJWTs = []
     currentRoot.currentAddressNode.currentSignedJWT = null
     currentRoot.currentAddressNode.wallet = new Wallet(currentRoot.currentAddressNode.privateKey)
-    console.log('privateKey ' + currentRoot.currentAddressNode.wallet.privateKey)
-    console.log('publicKey ' + currentRoot.currentAddressNode.publicKey)
     currentRoot.currentAddressNode.ethrDid = this.buildEthrDid(currentRoot.currentAddressNode.wallet)
     currentRoot.addressNodes.push(currentRoot.currentAddressNode)
 
@@ -167,12 +165,12 @@ class App extends Component {
     if(!currentAddressNode || !this.newOwner.value) return
 
     try {
-      const txHash = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)      
+      const txResult = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
           if(root.mnemonic === currentMnemonic) {
-            root.currentAddressNode.txHashes.push(txHash)
+            root.currentAddressNode.txResults.push(txResult)
             root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
           }
           return root
@@ -190,12 +188,12 @@ class App extends Component {
     if(!currentAddressNode || !this.attrKey.value || !this.attrKey.value) return
 
     try {
-      const txHash = await currentAddressNode.ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
+      const txResult = await currentAddressNode.ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
           if(root.mnemonic === currentMnemonic) {
-            root.currentAddressNode.txHashes.push(txHash)
+            root.currentAddressNode.txResults.push(txResult)
             root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
           }
           return root
@@ -278,6 +276,27 @@ class App extends Component {
     }))
   }
 
+  checkTxStatusAndRender(status) {
+    let el
+
+    class StatusEl extends Component {
+      constructor(props) {
+        super(props)
+        this.state = { status: '' }
+      }
+      render() {
+        return (
+          <span className={`${this.state.status === 'success' ? 'green' : 'red'}`}>{this.state.status}</span>
+        )
+      }
+    }
+
+    const StatusElement = <StatusEl ref={ref => {el = ref}}/>
+
+    status.then(res => el.setState({status: 'success'}), err => el.setState({status: 'failed'}))
+    return StatusElement
+  }
+
   render() {
     const {
       currentMnemonic,
@@ -334,7 +353,7 @@ class App extends Component {
 
           <div className="mnemonic-did-content">
 
-            <div className="mnemonic-list did-common">
+            <div className="w-50 did-common">
               <div className="common-line title">Mnemonic</div>
               <div className="wrap">
                 {
@@ -350,7 +369,7 @@ class App extends Component {
               </div>
             </div>
 
-            <div className="did-list did-common">
+            <div className="w-50 did-common">
               <div className="common-line title">DID</div>
               <div className="wrap">
                 {
@@ -370,7 +389,7 @@ class App extends Component {
         </div>
 
         <div className="content">
-          <div className="did-document did-common">
+          <div className="did-common">
             <div className="common-line title">DID Document</div>
             <div className="wrap">
               { didDocument && <pre>{ JSON.stringify(didDocument, null, 2) }</pre> }
@@ -387,23 +406,25 @@ class App extends Component {
           <input ref={el => this.attrValue = el} type="text" />
         </div>
 
-        <div className="control"></div>
-          <div className="tx-hashes did-common">
-              <div className="common-line title">TX Hashes</div>
-              <div className="wrap">
-                {
-                  currentAddressNode && currentAddressNode.txHashes.map(txHash =>
+        <div className="content">
+          <div className="did-common">
+            <div className="common-line title">TX Hashes</div>
+            <div className="wrap">
+              {
+                currentAddressNode && currentAddressNode.txResults.map(txResult =>
+                  <div className="dflex did-item common-line" key={txResult.txHash}>
                     <a
-                      key={txHash}
-                      href={`${etherscanBaseUrl}/${txHash}`}
-                      className={'did-item common-line'}
+                      href={`${etherscanBaseUrl}/${txResult.txHash}`}
                       target="_blank">
-                      {txHash}
+                      {txResult.txHash}
                     </a>
-                  )
-                }
-              </div>
+                    { this.checkTxStatusAndRender(txResult.txStatus) }
+                  </div>
+                )
+              }
+            </div>
           </div>
+        </div>
 
         <div className="control">
           <button onClick={() => this.signJWT()}>Sign JWT</button>
@@ -418,27 +439,25 @@ class App extends Component {
             <span>Selected Signed JWT:</span>
             <div className="signedJWT">{ currentAddressNode && currentAddressNode.currentSignedJWT || 'No Signed JWT selected' }</div>
           </div>
-          <div className="jwt-signed">
-            <div className="jwt-list did-common">
-              <div className="common-line title">Signed JWT</div>
-              <div className="wrap">
-                {
-                  currentAddressNode && currentAddressNode.signedJWTs.map(signedJWT =>
-                    <div
-                      key={signedJWT}
-                      className={`node-mnemonics common-line ${currentAddressNode.currentSignedJWT === signedJWT ? 'selected' : ''}`}
-                      onClick={ () => this.selectSignedJWT(signedJWT) }>
-                      { signedJWT }
-                    </div>
-                  )
-                }
-              </div>
+          <div className="did-common">
+            <div className="common-line title">Signed JWT</div>
+            <div className="wrap">
+              {
+                currentAddressNode && currentAddressNode.signedJWTs.map(signedJWT =>
+                  <div
+                    key={signedJWT}
+                    className={`node-mnemonics common-line ${currentAddressNode.currentSignedJWT === signedJWT ? 'selected' : ''}`}
+                    onClick={ () => this.selectSignedJWT(signedJWT) }>
+                    { signedJWT }
+                  </div>
+                )
+              }
             </div>
           </div>
         </div>
         
         <div className="content">
-          <div className="jwt-decoded did-common">
+          <div className="did-common">
             <div className="common-line title">Decoded JWT</div>
             <div className="wrap">
               { decodedJWT && <pre>{ JSON.stringify(decodedJWT, null, 2) }</pre> }
@@ -447,7 +466,7 @@ class App extends Component {
         </div>
 
         <div className="content">
-          <div className="jwt-verified did-common">
+          <div className="did-common">
             <div className="common-line title">Verified JWT</div>
             <div className="wrap">
               { verifiedJWT && <pre>{ JSON.stringify(verifiedJWT, null, 2) }</pre> }
