@@ -1,11 +1,13 @@
-import Web3  from  'web3'
+import Eth from 'ethjs-query'
 import HttpProvider from 'ethjs-provider-http'
+
+export const etherscanBaseUrl = 'https://ropsten.etherscan.io/tx'
 
 // const blockchainURL = `http://${process.env.REACT_APP_NETWORK_HOST}:${process.env.REACT_APP_BLOCKCHAIN_PORT}`
 const blockchainURL = `https://ropsten.infura.io/ethr-did'`
-// const blockchainURL = `http://localhost:8545`
-console.log(blockchainURL);
-const provider = new HttpProvider(blockchainURL)
-export const web3Instance = new Web3(provider)
+console.log(blockchainURL)
 
-web3Instance.eth.getBlock('latest').then(console.log)
+const provider = new HttpProvider(blockchainURL)
+export const ethInstance = new Eth(provider)
+
+ethInstance.blockNumber().then(console.log)

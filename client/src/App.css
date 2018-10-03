@@ -51,17 +51,17 @@
   height: 400px;
 }
 
-.selected-mnemonic, .selected-did, .selected-did-owner, .selected-signedJWT {
-  padding-bottom: 20px;
+.selected-mnemonic, .selected-did, .selected-did-owner, .selected-did-balance, .selected-signedJWT {
+  padding-bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  font-size: 12px;
+  font-size: 10px;
 }
 
-.mnemonic, .did, .did-owner {
-  margin-top: 5px;
-  font-size: 14px;
+.mnemonic, .did, .did-owner, .did-balance {
+  margin-top: 2px;
+  font-size: 10px;
   color: dodgerblue
 }
 
@@ -74,8 +74,8 @@
 }
 
 .common-line {
-  width: calc(100% - 40px);
-  padding: 20px;
+  width: calc(100% - 10px);
+  padding: 5px;
   border-bottom: 1px solid #ccc;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -87,7 +87,7 @@
   justify-content: center;
   align-items: center;
   font-weight: bold;
-  padding: 0 20px;
+  padding: 20 20px;
   height: 40px;
   background-color:beige
 }
@@ -109,16 +109,14 @@
   border-left: 1px solid #ccc;
 }
 
-
-
-.jwt-list, .tx-hash-list {
+.jwt-list, .tx-hashes {
   width: 100%;
   border-left: none;
 }
 
 .mnemonic-item, .did-item {
   cursor: pointer;
-  font-weight: normal;
+  font-size: 10px;
 }
 
 .mnemonic-list {
@@ -130,7 +128,7 @@
   width: 50%;
 }
 
-.mnemonic-did-content, .did-document, .jwt-signed, .jwt-decoded, .jwt-verified, .tx-hash {
+.mnemonic-did-content, .did-document, .jwt-signed, .jwt-decoded, .jwt-verified {
   width: 100%;
   border: 1px solid #ccc;
   display: flex;
