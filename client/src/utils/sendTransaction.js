@@ -11,7 +11,7 @@ import { waitBlock } from './waitBlock'
 const DONATOR_MNEMONIC = 'wire lounge raccoon wise autumn utility face measure cliff aspect inspire sport'
 
 const TX_NO_BYTECODE = '0x'
-const TX_GAS_PRICE = toWei(40, 'gwei')
+const TX_GAS_PRICE = toWei(100, 'gwei')
 const TX_GAS_LIMIT = 3000000
 
 // const GAS_REQUIRED = {

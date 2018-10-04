@@ -4,8 +4,9 @@ import { stringToBytes32, delegateTypes, REGISTRY } from 'ethr-did-resolver'
 import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 import { createJWT, verifyJWT, SimpleSigner } from 'did-jwt'
 import { toEthereumAddress } from 'did-jwt/lib/Digest'
+import { logDecoder } from 'ethjs-abi'
 
-
+import { ethInstance } from './connect'
 import { didRegistryInstance } from './RegistryContract'
 import { sendFundedTransaction } from './sendTransaction'
 
@@ -44,6 +45,46 @@ class EthrDID {
     return {address, privateKey}
   }
 
+  static async lastChanged (identity) {
+    const result = await didRegistryInstance.changed(identity)
+    if (result) {
+      return result['0']
+    }
+  }
+
+  static async getDidEventHistory (identity) {
+    let history = []
+
+    let previousChange = await EthrDID.lastChanged(identity)
+
+    while (previousChange) {
+      const blockNumber = previousChange.toNumber()
+      const block = await ethInstance.getBlockByNumber(blockNumber, true) // TODO what the fuck is 'true'
+
+      const logs = await ethInstance.getLogs({
+        address: REGISTRY,
+        topics: [null, `0x000000000000000000000000${identity.slice(2)}`], 
+        fromBlock: previousChange,
+        toBlock: previousChange
+      })
+      const events = logDecoder(DidRegistryABI, false)(logs)
+
+      previousChange = undefined
+      for (let event of events) {
+        history = [ { blockNumber, timestamp: block.timestamp, event }, ...history ]
+        previousChange = event.previousChange
+      }
+    }
+    return history
+  }
+
+  /*
+  static async getDIDOwnerChangedEvents (identity) {
+    const history = await EthrDID.getDidEventHistory(identity)
+    return history.filter(item => item.event._eventName === 'DIDOwnerChanged')
+  }
+  */
+
   constructor (conf = {}) {
     if (!conf.address) throw new Error('No address is set for EthrDid')
 
@@ -65,36 +106,69 @@ class EthrDID {
 
   async changeOwner (newOwner) {
     const owner = await this.lookupOwner()
-    const txData = { ...commonTxData, from: owner, methodName: 'changeOwner',  params: [this.address, newOwner] }
+    const txData = {
+      ...commonTxData,
+      from: owner,
+      methodName: 'changeOwner', 
+      params: [this.address, newOwner]
+    }
     const txResult = await this.withPrivateKey(sendFundedTransaction)(txData)
     this.owner = newOwner
     return txResult
   }
 
+  async setAttribute (key, value, expiresIn = 86400) {
+    const owner = await this.lookupOwner()
+
+    // return didRegistryInstance.setAttribute(this.address, stringToBytes32(key), attributeToHex(key, value), expiresIn, {from: owner})
+    
+    // 'did/pub/Ed25519/veriKey/base64', 'Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx', 31104000
+    // 'did/pub/Ed25519/veriKey/base64', Buffer.from('Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx', 'base64'), 31104000
+    // 'did/svc/HubService', 'https://hubs.uport.me', 10
+
+    // 
+
+    const txData = { 
+      ...commonTxData, 
+      from: owner,
+      methodName: 'setAttribute', 
+      params: [
+        this.address,
+        stringToBytes32(key),
+        stringToBytes32(key, value),
+        expiresIn
+      ]
+    }
+    
+    const txResult = await this.withPrivateKey(sendFundedTransaction)(txData)
+    return txResult
+  }
+
+  /*
   async addDelegate (delegate, options = {}) {
     const delegateType = options.delegateType || Secp256k1VerificationKey2018
     const expiresIn = options.expiresIn || 86400
     const owner = await this.lookupOwner()
     return didRegistryInstance.addDelegate(this.address, delegateType, delegate, expiresIn, {from: owner})
   }
+  */
 
+  /*
   async revokeDelegate (delegate, delegateType = Secp256k1VerificationKey2018) {
     const owner = await this.lookupOwner()
     return didRegistryInstance.revokeDelegate(this.address, delegateType, delegate, {from: owner})
   }
-
-  async setAttribute (key, value, expiresIn = 86400) {
-    const owner = await this.lookupOwner()
-    return didRegistryInstance.setAttribute(this.address, stringToBytes32(key), attributeToHex(key, value), expiresIn, {from: owner})
-  }
+  */
 
   // Create a temporary signing delegate able to sign JWT on behalf of identity
+  /*
   async createSigningDelegate (delegateType = Secp256k1VerificationKey2018, expiresIn = 86400) {
     const kp = EthrDID.createKeyPair()
     this.signer = SimpleSigner(kp.privateKey)
     const txHash = await this.addDelegate(kp.address, {delegateType, expiresIn})
     return {kp, txHash}
   }
+  */
 
   async signJWT (payload, expiresIn) {
     if (typeof this.signer !== 'function') throw new Error('No signer configured')

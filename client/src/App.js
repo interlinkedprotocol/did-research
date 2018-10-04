@@ -5,6 +5,7 @@ import bip39 from 'bip39';
 import EthrDID from './utils/ethDid'
 import resolve from 'did-resolver';
 import { decodeJWT } from 'did-jwt'
+import moment from 'moment'
 
 import logo from './logo.png';
 import './App.css';
@@ -12,6 +13,8 @@ import './App.css';
 import { ethInstance, etherscanBaseUrl } from './utils/connect'
 
 class App extends Component {
+  static getFormattedTime = (timestamp) => moment(timestamp.toNumber() * 1000).format('D MMM YYYY : HH-mm-ss')
+
   constructor(props){
     super (props)
     this.state = {
@@ -20,11 +23,13 @@ class App extends Component {
       didDocument: null,
       didOwner: null,
       didBalance: null,
+      didHistory: null,
       derivationPath: `m/44'/60'/0'/0`,
       decodedJWT: null,
       verifiedJWT: null
     }
   }
+  
 
   recoverHdWallet() {
     if(!this.mnemonic.value) return
@@ -80,12 +85,14 @@ class App extends Component {
       const newDidOwner = await currentRoot.currentAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(currentRoot.currentAddressNode.ethrDid.did)
       const newDidBalance = await ethInstance.getBalance(currentRoot.currentAddressNode.wallet.address, 'latest')
+      const newDidHistory = await EthrDID.getDidEventHistory(currentRoot.currentAddressNode.wallet.address)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
         didOwner: newDidOwner,
         didDocument: newDidDocument,
-        didBalance: newDidBalance
+        didBalance: newDidBalance,
+        didHistory: newDidHistory
       }))
     } catch (e) {
       throw e
@@ -112,13 +119,15 @@ class App extends Component {
       const newDidOwner = await selectedRoot.currentAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(selectedRoot.currentAddressNode.ethrDid.did)
       const newDidBalance = await ethInstance.getBalance(selectedRoot.currentAddressNode.wallet.address, 'latest')
+      const newDidHistory = await EthrDID.getDidEventHistory(selectedRoot.currentAddressNode.wallet.address)
 
       this.setState(prevState => ({
         currentMnemonic: selectedMnemonic,
         roots: prevState.roots.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
         didOwner: newDidOwner,
         didDocument: newDidDocument,
-        didBalance: newDidBalance
+        didBalance: newDidBalance,
+        didHistory: newDidHistory
       }))
     } catch (e) {
       throw e
@@ -135,7 +144,8 @@ class App extends Component {
     try {
       const newDidOwner = await selectedAddressNode.ethrDid.lookupOwner()
       const newDidDocument = await resolve(selectedAddressNode.ethrDid.did)
-      const newDidBalance = await ethInstance.getBalance(currentAddressNode.wallet.address, 'latest') 
+      const newDidBalance = await ethInstance.getBalance(currentAddressNode.wallet.address, 'latest')
+      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
@@ -144,7 +154,8 @@ class App extends Component {
         }),
         didOwner: newDidOwner,
         didDocument: newDidDocument,
-        didBalance: newDidBalance
+        didBalance: newDidBalance,
+        didHistory: newDidHistory
       }))
     } catch (e) {
       throw e
@@ -304,6 +315,7 @@ class App extends Component {
       didOwner,
       didDocument,
       didBalance,
+      didHistory,
       decodedJWT,
       verifiedJWT
     } = this.state;
@@ -373,7 +385,9 @@ class App extends Component {
               <div className="common-line title">DID</div>
               <div className="wrap">
                 {
-                  currentRoot && currentRoot.addressNodes && currentRoot.addressNodes.map(addressNode =>
+                  currentRoot 
+                  && currentRoot.addressNodes 
+                  && currentRoot.addressNodes.map(addressNode =>
                     <div
                       key={addressNode.wallet.address}
                       className={`did-item common-line ${addressNode === currentRoot.currentAddressNode ? 'selected' : ''}`}
@@ -390,9 +404,31 @@ class App extends Component {
 
         <div className="content">
           <div className="did-common">
-            <div className="common-line title">DID Document</div>
+            <div className="common-line title">DID document</div>
             <div className="wrap">
               { didDocument && <pre>{ JSON.stringify(didDocument, null, 2) }</pre> }
+            </div>
+          </div>
+        </div>
+
+        <div className="content">
+          <div className="did-common">
+            <div className="common-line title">DID audit trail</div>
+            <div className="wrap">
+              { 
+                currentRoot 
+                && currentRoot.currentAddressNode
+                && currentRoot.currentAddressNode.wallet.address
+                && didHistory.reduce(
+                  (res, item) => item.event._eventName !== 'DIDOwnerChanged' 
+                    ? res 
+                    : [ 
+                      ...res,
+                      <div key={item} className={`did-item common-line`}>
+                        {`${App.getFormattedTime(item.timestamp)} - ${item.event.owner}`}
+                      </div>
+                    ], [])  
+              }
             </div>
           </div>
         </div>
