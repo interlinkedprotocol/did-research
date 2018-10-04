@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import { fromWei } from 'ethjs-unit'
 import { HDNode, Wallet } from 'ethers';
 import bip39 from 'bip39';
@@ -6,6 +6,7 @@ import EthrDID from './utils/ethDid'
 import resolve from 'did-resolver';
 import { decodeJWT } from 'did-jwt'
 import moment from 'moment'
+import { bytes32toString } from './utils/register'
 
 import logo from './logo.png';
 import './App.css';
@@ -13,7 +14,7 @@ import './App.css';
 import { ethInstance, etherscanBaseUrl } from './utils/connect'
 
 class App extends Component {
-  static getFormattedTime = (timestamp) => moment(timestamp.toNumber() * 1000).format('D MMM YYYY : HH-mm-ss')
+  static getFormattedTime = timestamp => moment(timestamp.toNumber() * 1000).format('D MMM YYYY : HH-mm-ss')
 
   constructor(props){
     super (props)
@@ -23,7 +24,7 @@ class App extends Component {
       didDocument: null,
       didOwner: null,
       didBalance: null,
-      didHistory: null,
+      didHistory: [],
       derivationPath: `m/44'/60'/0'/0`,
       decodedJWT: null,
       verifiedJWT: null
@@ -177,6 +178,8 @@ class App extends Component {
 
     try {
       const txResult = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)
+      const newDidOwner = await currentAddressNode.ethrDid.lookupOwner()
+      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
 
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
@@ -185,7 +188,9 @@ class App extends Component {
             root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
           }
           return root
-        })
+        }),
+        didOwner: newDidOwner,
+        didHistory: newDidHistory
       }))
     } catch (err) {
       throw err
@@ -200,7 +205,8 @@ class App extends Component {
 
     try {
       const txResult = await currentAddressNode.ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
-
+      const newDidDocument = await resolve(currentAddressNode.ethrDid.did)
+      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
       this.setState(prevState => ({
         roots: prevState.roots.map(root => {
           if(root.mnemonic === currentMnemonic) {
@@ -208,7 +214,9 @@ class App extends Component {
             root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
           }
           return root
-        })
+        }),
+        didDocument: newDidDocument,
+        didHistory: newDidHistory
       }))
     } catch (err) {
       throw err
@@ -293,7 +301,8 @@ class App extends Component {
     class StatusEl extends Component {
       constructor(props) {
         super(props)
-        this.state = { status: '' }
+        const statusMess = !(status instanceof Promise) && (status ? 'success' : 'failed')
+        this.state = { status: statusMess || '' }
       }
       render() {
         return (
@@ -304,7 +313,7 @@ class App extends Component {
 
     const StatusElement = <StatusEl ref={ref => {el = ref}}/>
 
-    status.then(res => el.setState({status: 'success'}), err => el.setState({status: 'failed'}))
+    if(status instanceof Promise) status.then(res => el.setState({status: 'success'}), err => el.setState({status: 'failed'}))
     return StatusElement
   }
 
@@ -419,15 +428,23 @@ class App extends Component {
                 currentRoot 
                 && currentRoot.currentAddressNode
                 && currentRoot.currentAddressNode.wallet.address
-                && didHistory.reduce(
-                  (res, item) => item.event._eventName !== 'DIDOwnerChanged' 
-                    ? res 
-                    : [ 
-                      ...res,
-                      <div key={item} className={`did-item common-line`}>
-                        {`${App.getFormattedTime(item.timestamp)} - ${item.event.owner}`}
-                      </div>
-                    ], [])  
+                && didHistory.map(item => (
+                  <div key={item} className={`did-item common-line dflex`}>
+                    <span className="m-r-10">{App.getFormattedTime(item.timestamp)}</span>
+                    <span className="m-r-10">{item.event._eventName}</span>
+                    {
+                      item.event._eventName === 'DIDOwnerChanged'
+                      && <span>{item.event.owner}</span>
+                    }
+                    {
+                      item.event._eventName === 'DIDAttributeChanged'
+                      && <Fragment>
+                        <span className="m-r-10">{bytes32toString(item.event.name)}</span>
+                        <span>{bytes32toString(item.event.value)}</span>
+                      </Fragment>
+                    }
+                  </div>
+                ))
               }
             </div>
           </div>
@@ -436,10 +453,11 @@ class App extends Component {
         <div className="control">
           <button onClick={() => this.changeDidOwner()}>Change DID Owner</button>
           <input ref={el => this.newOwner = el} type="text" />
-
+        </div>
+        <div className="control">
           <button onClick={() => this.setAttribute()}>Set DID Attribute</button>
-          <input ref={el => this.attrKey = el} type="text" />
-          <input ref={el => this.attrValue = el} type="text" />
+          <input ref={el => this.attrKey = el} type="text" defaultValue="did/pub/Ed25519/veriKey/base64" />
+          <input ref={el => this.attrValue = el} type="text" defaultValue="Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx" />
         </div>
 
         <div className="content">
@@ -448,7 +466,7 @@ class App extends Component {
             <div className="wrap">
               {
                 currentAddressNode && currentAddressNode.txResults.map(txResult =>
-                  <div className="dflex did-item common-line" key={txResult.txHash}>
+                  <div className="dflex jcsb did-item common-line" key={txResult.txHash}>
                     <a
                       href={`${etherscanBaseUrl}/${txResult.txHash}`}
                       target="_blank">
@@ -473,7 +491,7 @@ class App extends Component {
         <div className="content">
           <div className="selected-signedJWT">
             <span>Selected Signed JWT:</span>
-            <div className="signedJWT">{ currentAddressNode && currentAddressNode.currentSignedJWT || 'No Signed JWT selected' }</div>
+            <div className="signedJWT">{ currentAddressNode ? currentAddressNode.currentSignedJWT : 'No Signed JWT selected' }</div>
           </div>
           <div className="did-common">
             <div className="common-line title">Signed JWT</div>

@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer'
+// import { Buffer } from 'buffer'
 import { ec as EC } from 'elliptic'
 import { stringToBytes32, delegateTypes, REGISTRY } from 'ethr-did-resolver'
 import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
@@ -11,25 +11,25 @@ import { didRegistryInstance } from './RegistryContract'
 import { sendFundedTransaction } from './sendTransaction'
 
 const secp256k1 = new EC('secp256k1')
-const { Secp256k1VerificationKey2018 } = delegateTypes
-
-function attributeToHex (key, value) {
-  if (Buffer.isBuffer(value)) {
-    return `0x${value.toString('hex')}`
-  }
-  const match = key.match(/^did\/(pub|auth|svc)\/(\w+)(\/(\w+))?(\/(\w+))?$/)
-  if (match) {
-    const encoding = match[6]
-    // TODO add support for base58
-    if (encoding === 'base64') {
-      return `0x${Buffer.from(value, 'base64').toString('hex')}`
-    }
-  }
-  if (value.match(/^0x[0-9a-fA-F]*$/)) {
-    return value
-  }
-  return `0x${Buffer.from(value).toString('hex')}`
-}
+// const { Secp256k1VerificationKey2018 } = delegateTypes
+//
+// function attributeToHex (key, value) {
+//   if (Buffer.isBuffer(value)) {
+//     return `0x${value.toString('hex')}`
+//   }
+//   const match = key.match(/^did\/(pub|auth|svc)\/(\w+)(\/(\w+))?(\/(\w+))?$/)
+//   if (match) {
+//     const encoding = match[6]
+//     // TODO add support for base58
+//     if (encoding === 'base64') {
+//       return `0x${Buffer.from(value, 'base64').toString('hex')}`
+//     }
+//   }
+//   if (value.match(/^0x[0-9a-fA-F]*$/)) {
+//     return value
+//   }
+//   return `0x${Buffer.from(value).toString('hex')}`
+// }
 
 const commonTxData = {
   to: REGISTRY,
@@ -59,8 +59,8 @@ class EthrDID {
 
     while (previousChange) {
       const blockNumber = previousChange.toNumber()
-      const block = await ethInstance.getBlockByNumber(blockNumber, true) // TODO what the fuck is 'true'
-
+      const block = await ethInstance.getBlockByNumber(blockNumber, false) // TODO what the fuck is 'true'
+      console.log(blockNumber, block);
       const logs = await ethInstance.getLogs({
         address: REGISTRY,
         topics: [null, `0x000000000000000000000000${identity.slice(2)}`], 
@@ -112,21 +112,13 @@ class EthrDID {
       methodName: 'changeOwner', 
       params: [this.address, newOwner]
     }
-    const txResult = await this.withPrivateKey(sendFundedTransaction)(txData)
+    const txResult = await this.withPrivateKey(sendFundedTransaction)(txData, true)
     this.owner = newOwner
     return txResult
   }
 
   async setAttribute (key, value, expiresIn = 86400) {
     const owner = await this.lookupOwner()
-
-    // return didRegistryInstance.setAttribute(this.address, stringToBytes32(key), attributeToHex(key, value), expiresIn, {from: owner})
-    
-    // 'did/pub/Ed25519/veriKey/base64', 'Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx', 31104000
-    // 'did/pub/Ed25519/veriKey/base64', Buffer.from('Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx', 'base64'), 31104000
-    // 'did/svc/HubService', 'https://hubs.uport.me', 10
-
-    // 
 
     const txData = { 
       ...commonTxData, 
@@ -139,9 +131,8 @@ class EthrDID {
         expiresIn
       ]
     }
-    
-    const txResult = await this.withPrivateKey(sendFundedTransaction)(txData)
-    return txResult
+
+    return await this.withPrivateKey(sendFundedTransaction)(txData, true)
   }
 
   /*

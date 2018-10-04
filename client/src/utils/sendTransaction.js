@@ -7,6 +7,7 @@ import { HDNode, Wallet } from 'ethers'
 import { ethInstance, etherscanBaseUrl } from './connect'
 import { getUpfrontCost } from './estimateTransaction';
 import { waitBlock } from './waitBlock'
+import PromiseWithStatus from './promiseWithStatus'
 
 const DONATOR_MNEMONIC = 'wire lounge raccoon wise autumn utility face measure cliff aspect inspire sport'
 
@@ -44,7 +45,7 @@ export async function sendFundedTransaction (privateKey, data, needWaitReceipt =
   const txHash = await ethInstance.sendRawTransaction(sigHex)
   console.log(`${etherscanBaseUrl}/${txHash}`)
 
-  const txStatus = needWaitReceipt ? await waitBlock(txHash) : waitBlock(txHash)
+  const txStatus = needWaitReceipt ? await waitBlock(txHash) : PromiseWithStatus(waitBlock(txHash))
 
   return { txHash, txStatus }
 } 
@@ -87,7 +88,7 @@ export async function sendSignedTransaction (data, privateKey, needWaitReceipt =
 
   if (senderBalance.ucmp(txCost) === -1)
     throw new Error(
-      `Transaction requires ${fromWei(txCost)} Eth, but sender holds ${fromWei(senderBalance)} Eth\nRawTx:${rawTx}`
+      `Transaction requires ${fromWei(txCost, 'ether')} Eth, but sender holds ${fromWei(senderBalance, 'ether')} Eth\nRawTx:${rawTx}`
     )
 
   const sigHex = sign(rawTx, privateKey)
@@ -95,7 +96,7 @@ export async function sendSignedTransaction (data, privateKey, needWaitReceipt =
   const txHash = await ethInstance.sendRawTransaction(sigHex)
   console.log(`${etherscanBaseUrl}/${txHash}`)
 
-  const txStatus = needWaitReceipt ? await waitBlock(txHash) : waitBlock(txHash)
+  const txStatus = needWaitReceipt ? await waitBlock(txHash) : PromiseWithStatus(waitBlock(txHash))
 
   return { txHash, txStatus }
 }

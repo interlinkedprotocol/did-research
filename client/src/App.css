@@ -29,6 +29,10 @@
   justify-content: center;
 }
 
+.control input {
+  min-width: 300px;
+}
+
 .control button {
   cursor: pointer;
   padding: 10px;
@@ -41,6 +45,10 @@
 
 .bb1 {
   border-bottom: 1px solid #ccc;
+}
+
+.m-r-10 {
+  margin-right: 10px;
 }
 
 .content {
@@ -126,6 +134,9 @@
 
 .dflex {
   display: flex;
+}
+
+.jcsb {
   justify-content: space-between;
 }
 

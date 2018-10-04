@@ -5,6 +5,8 @@
   "dependencies": {
     "bignumber.js": "^7.2.1",
     "bip39": "^2.5.0",
+    "bn": "^1.0.1",
+    "buffer": "^5.2.1",
     "did-jwt": "0.0.8",
     "did-resolver": "0.0.4",
     "elliptic": "^6.4.1",
