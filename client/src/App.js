@@ -1,226 +1,59 @@
-import React, { Component, Fragment } from 'react';
+import React, { Component, Fragment } from 'react'
+import { HDNode } from 'ethers'
+import bip39 from 'bip39'
 import { fromWei } from 'ethjs-unit'
-import { HDNode, Wallet } from 'ethers';
-import bip39 from 'bip39';
-import EthrDID from './utils/ethDid'
-import resolve from 'did-resolver';
 import { decodeJWT } from 'did-jwt'
-import moment from 'moment'
-import { bytes32toString } from './utils/register'
+import { startCase } from 'lodash'
+import resolve from 'did-resolver'
+
+import EthrDID from './utils/ethrDid'
+import { bytes32toString } from './utils/ethrDid/register'
+import { hexToAttribute, privateKeyToEthereumAddress } from './utils/ethrDid/formatting'
+import { getFormattedTime } from './utils/formatting'
+import { ethInstance, etherscanBaseUrl } from './utils/connect'
+import { waitBlock } from './utils/transactions/waitBlock'
+import { asyncForEach } from './utils/asyncForEach'
 
 import logo from './logo.png';
 import './App.css';
 
-import { ethInstance, etherscanBaseUrl } from './utils/connect'
-
 class App extends Component {
-  static getFormattedTime = timestamp => moment(timestamp.toNumber() * 1000).format('D MMM YYYY : HH-mm-ss')
-
-  constructor(props){
+  constructor (props) {
     super (props)
     this.state = {
+      derivationPath: `m/44'/60'/0'/0`,
       roots: [],
       currentMnemonic: null,
-      didDocument: null,
       didOwner: null,
-      didBalance: null,
+      didDocument: null,
       didHistory: [],
-      derivationPath: `m/44'/60'/0'/0`,
+      didBalance: null,
       decodedJWT: null,
       verifiedJWT: null
     }
   }
-  
 
-  recoverHdWallet() {
-    if(!this.mnemonic.value) return
+  async execSendTxSequence(sendTxFunctions) {
+    await asyncForEach(sendTxFunctions, async (sendTxFunction) => {
+      const txResult = await sendTxFunction.func()
+      txResult.txName = sendTxFunction.name    
+      this.updateTxResults(txResult)
 
-    const mnemonic = this.mnemonic.value
-    const masterNode = HDNode.fromMnemonic(mnemonic)
+      txResult.txStatus = await waitBlock(txResult.txHash)
+      this.updateTxResults(txResult)
 
-    this.setState(prevState => ({
-      roots: [
-        ...prevState.roots,
-        { mnemonic, masterNode }
-      ],
-      currentMnemonic: mnemonic,
-      didDocument: null,
-      didOwner: null,
-      didBalance: null
+      this.updateDidBalance()
+    })
+  }
+
+  async updateDidBalance() {
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    const newDidBalance = await ethInstance.getBalance(currentAddressNode.address, 'latest')
+
+    this.setState(({
+      didBalance: newDidBalance
     }))
-  }
-
-  generateHdWallet() {
-    const mnemonic = bip39.generateMnemonic()
-    const masterNode = HDNode.fromMnemonic(mnemonic)
-
-    this.setState(prevState => ({
-      roots: [
-        ...prevState.roots,
-        { mnemonic, masterNode }
-      ],
-      currentMnemonic: mnemonic,
-      didDocument: null,
-      didOwner: null,
-      didBalance: null
-    }))
-  }
-
-  async deriveChildWallet() {
-    const { currentMnemonic, roots, derivationPath } = this.state
-
-    if(!currentMnemonic) return
-
-    const currentRoot = roots.find(root => currentMnemonic === root.mnemonic)
-
-    currentRoot.addressNodes = currentRoot.addressNodes || []
-    currentRoot.currentAddressNode = currentRoot.masterNode.derivePath(`${derivationPath}/${currentRoot.addressNodes.length}`)
-    currentRoot.currentAddressNode.txResults = []
-    currentRoot.currentAddressNode.signedJWTs = []
-    currentRoot.currentAddressNode.currentSignedJWT = null
-    currentRoot.currentAddressNode.wallet = new Wallet(currentRoot.currentAddressNode.privateKey)
-    currentRoot.currentAddressNode.ethrDid = this.buildEthrDid(currentRoot.currentAddressNode.wallet)
-    currentRoot.addressNodes.push(currentRoot.currentAddressNode)
-
-    try {
-      const newDidOwner = await currentRoot.currentAddressNode.ethrDid.lookupOwner()
-      const newDidDocument = await resolve(currentRoot.currentAddressNode.ethrDid.did)
-      const newDidBalance = await ethInstance.getBalance(currentRoot.currentAddressNode.wallet.address, 'latest')
-      const newDidHistory = await EthrDID.getDidEventHistory(currentRoot.currentAddressNode.wallet.address)
-
-      this.setState(prevState => ({
-        roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
-        didOwner: newDidOwner,
-        didDocument: newDidDocument,
-        didBalance: newDidBalance,
-        didHistory: newDidHistory
-      }))
-    } catch (e) {
-      throw e
-    }
-
-  }
-
-  async selectMnemonic(selectedMnemonic) {
-    const { currentMnemonic, roots } = this.state
-    if (currentMnemonic === selectedMnemonic) return
-
-    const selectedRoot = roots.find(root => root.mnemonic === selectedMnemonic)
-
-    if(!selectedRoot.currentAddressNode){
-      return this.setState({
-        currentMnemonic: selectedMnemonic,
-        didOwner: null,
-        didDocument: null,
-        didBalance: null
-      })
-    }
-
-    try {
-      const newDidOwner = await selectedRoot.currentAddressNode.ethrDid.lookupOwner()
-      const newDidDocument = await resolve(selectedRoot.currentAddressNode.ethrDid.did)
-      const newDidBalance = await ethInstance.getBalance(selectedRoot.currentAddressNode.wallet.address, 'latest')
-      const newDidHistory = await EthrDID.getDidEventHistory(selectedRoot.currentAddressNode.wallet.address)
-
-      this.setState(prevState => ({
-        currentMnemonic: selectedMnemonic,
-        roots: prevState.roots.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
-        didOwner: newDidOwner,
-        didDocument: newDidDocument,
-        didBalance: newDidBalance,
-        didHistory: newDidHistory
-      }))
-    } catch (e) {
-      throw e
-    }
-  }
-
-  async selectAddress(selectedAddressNode) {
-    const { currentMnemonic } = this.state
-
-    const currentAddressNode = this.getCurrentAddressNode()
-
-    if(currentAddressNode === selectedAddressNode) return
-
-    try {
-      const newDidOwner = await selectedAddressNode.ethrDid.lookupOwner()
-      const newDidDocument = await resolve(selectedAddressNode.ethrDid.did)
-      const newDidBalance = await ethInstance.getBalance(currentAddressNode.wallet.address, 'latest')
-      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
-
-      this.setState(prevState => ({
-        roots: prevState.roots.map(root => {
-          if(root.mnemonic === currentMnemonic) root.currentAddressNode = selectedAddressNode
-          return root
-        }),
-        didOwner: newDidOwner,
-        didDocument: newDidDocument,
-        didBalance: newDidBalance,
-        didHistory: newDidHistory
-      }))
-    } catch (e) {
-      throw e
-    }
-  }
-
-  did = address => `did:ethr:${address}`
-
-  buildEthrDid = wallet => new EthrDID({
-    address: wallet.address,
-    privateKey: wallet.privateKey
-  })
-
-  async changeDidOwner() {
-    const { currentMnemonic } = this.state
-    const currentAddressNode = this.getCurrentAddressNode()
-
-    if(!currentAddressNode || !this.newOwner.value) return
-
-    try {
-      const txResult = await currentAddressNode.ethrDid.changeOwner(this.newOwner.value)
-      const newDidOwner = await currentAddressNode.ethrDid.lookupOwner()
-      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
-
-      this.setState(prevState => ({
-        roots: prevState.roots.map(root => {
-          if(root.mnemonic === currentMnemonic) {
-            root.currentAddressNode.txResults.push(txResult)
-            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
-          }
-          return root
-        }),
-        didOwner: newDidOwner,
-        didHistory: newDidHistory
-      }))
-    } catch (err) {
-      throw err
-    }
-  }
-
-  async setAttribute() {
-    const { currentMnemonic } = this.state
-    const currentAddressNode = this.getCurrentAddressNode()
-
-    if(!currentAddressNode || !this.attrKey.value || !this.attrKey.value) return
-
-    try {
-      const txResult = await currentAddressNode.ethrDid.setAttribute(this.attrKey.value, this.attrValue.value)
-      const newDidDocument = await resolve(currentAddressNode.ethrDid.did)
-      const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.wallet.address)
-      this.setState(prevState => ({
-        roots: prevState.roots.map(root => {
-          if(root.mnemonic === currentMnemonic) {
-            root.currentAddressNode.txResults.push(txResult)
-            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
-          }
-          return root
-        }),
-        didDocument: newDidDocument,
-        didHistory: newDidHistory
-      }))
-    } catch (err) {
-      throw err
-    }
   }
 
   getCurrentAddressNode() {
@@ -230,6 +63,229 @@ class App extends Component {
     return currentRoot && currentRoot.currentAddressNode
   }
 
+  recoverHdWallet() {
+    if(!this.mnemonic.value) return
+
+    const providedMnemonic = this.mnemonic.value
+    const masterNode = HDNode.fromMnemonic(providedMnemonic)
+
+    this.setState(prevState => ({
+      currentMnemonic: providedMnemonic,
+      roots: [ ...prevState.roots, { mnemonic: providedMnemonic, masterNode } ],
+      didOwner: null,
+      didDocument: null,
+      didHistory: null,
+      didBalance: null
+    }))
+  }
+
+  generateHdWallet() {
+    const generatedMnemonic = bip39.generateMnemonic()
+    const masterNode = HDNode.fromMnemonic(generatedMnemonic)
+
+    this.setState(prevState => ({
+      currentMnemonic: generatedMnemonic,
+      roots: [
+        ...prevState.roots,
+        { mnemonic: generatedMnemonic, masterNode }
+      ],
+      didOwner: null,
+      didDocument: null,
+      didHistory: null,
+      didBalance: null
+    }))
+  }
+
+  async deriveChildWallet() {
+    const { currentMnemonic, roots, derivationPath } = this.state
+
+    if(!currentMnemonic) return
+
+    const currentRoot = roots.find(root => root.mnemonic === currentMnemonic)
+
+    currentRoot.addressNodes = currentRoot.addressNodes || []
+    currentRoot.currentAddressNode = currentRoot.masterNode.derivePath(`${derivationPath}/${currentRoot.addressNodes.length}`)
+    currentRoot.currentAddressNode.address = privateKeyToEthereumAddress(currentRoot.currentAddressNode.privateKey)
+    currentRoot.currentAddressNode.ethrDid = new EthrDID({ 
+      privateKey: currentRoot.currentAddressNode.privateKey,
+      address: currentRoot.currentAddressNode.address
+    })
+    // currentRoot.currentAddressNode.ethrDid = new EthrDID(EthrDID.createKeyPair())
+    currentRoot.currentAddressNode.txResults = []
+    currentRoot.currentAddressNode.signedJWTs = []
+    currentRoot.currentAddressNode.currentSignedJWT = null
+
+    currentRoot.addressNodes.push(currentRoot.currentAddressNode)
+
+    const newDidOwner = await currentRoot.currentAddressNode.ethrDid.lookupOwner()
+    const newDidDocument = await resolve(currentRoot.currentAddressNode.ethrDid.did)
+    const newDidHistory = await EthrDID.getDidEventHistory(currentRoot.currentAddressNode.address)
+    const newDidBalance = await ethInstance.getBalance(currentRoot.currentAddressNode.address, 'latest')
+
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => root.mnemonic === currentMnemonic ? currentRoot : root),
+      didOwner: newDidOwner,
+      didDocument: newDidDocument,
+      didHistory: newDidHistory,
+      didBalance: newDidBalance
+    }))
+  }
+
+  async selectMnemonic(selectedMnemonic) {
+    const { currentMnemonic, roots } = this.state
+
+    if (currentMnemonic === selectedMnemonic) return
+
+    const selectedRoot = roots.find(root => root.mnemonic === selectedMnemonic)
+
+    if(selectedRoot.currentAddressNode) {
+      const newDidOwner = await selectedRoot.currentAddressNode.ethrDid.lookupOwner()
+      const newDidDocument = await resolve(selectedRoot.currentAddressNode.ethrDid.did)
+      const newDidHistory = await EthrDID.getDidEventHistory(selectedRoot.currentAddressNode.address)
+      const newDidBalance = await ethInstance.getBalance(selectedRoot.currentAddressNode.address, 'latest')
+
+      this.setState(prevState => ({
+        currentMnemonic: selectedMnemonic,
+        roots: prevState.roots.map(root => root.mnemonic === selectedMnemonic ? selectedRoot : root),
+        didOwner: newDidOwner,
+        didDocument: newDidDocument,
+        didHistory: newDidHistory,
+        didBalance: newDidBalance
+      }))
+    } else {
+      this.setState(({
+        currentMnemonic: selectedMnemonic,
+        didOwner: null,
+        didDocument: null,
+        didHistory: null,
+        didBalance: null
+      }))
+    }
+  }
+
+  async selectAddress(selectedAddressNode) {
+    const { currentMnemonic } = this.state
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    if (currentAddressNode === selectedAddressNode) return
+
+    const newDidOwner = await selectedAddressNode.ethrDid.lookupOwner()
+    const newDidDocument = await resolve(selectedAddressNode.ethrDid.did)
+    const newDidHistory = await EthrDID.getDidEventHistory(selectedAddressNode.address)
+    const newDidBalance = await ethInstance.getBalance(selectedAddressNode.address, 'latest')
+
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) root.currentAddressNode = selectedAddressNode
+        return root
+      }),
+      didOwner: newDidOwner,
+      didDocument: newDidDocument,
+      didHistory: newDidHistory,
+      didBalance: newDidBalance
+    }))
+  }
+
+  did = address => `did:ethr:${address}`
+
+  updateTxResults (updatedTxResult) {
+    const { currentMnemonic } = this.state
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) {
+
+          const existingTxResult = root.currentAddressNode.txResults.find(txResult => txResult.txHash === updatedTxResult.txHash)
+          existingTxResult === undefined
+            ? root.currentAddressNode.txResults.push(updatedTxResult)
+            : root.currentAddressNode.txResults.map(txResult => 
+              txResult.txHash === existingTxResult.txHash 
+                ? updatedTxResult
+                : txResult
+            )
+
+          root.addressNodes.map(addressNode => 
+            addressNode.publicKey === currentAddressNode.publicKey 
+              ? root.currentAddressNode
+              : addressNode
+          )
+        }
+        return root
+      })
+    }))
+  }
+
+  async changeDidOwner() {
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    if(!currentAddressNode || !this.newOwner.value) return
+
+    const rawTx = await currentAddressNode.ethrDid.changeOwnerTx(this.newOwner.value)
+    const sendTxFunctions = await currentAddressNode.ethrDid.sendFundedTx(rawTx, 'changeDidOwner')
+    await this.execSendTxSequence(sendTxFunctions)
+
+    const newDidOwner = await currentAddressNode.ethrDid.lookupOwner()
+    const newDidDocument = await resolve(currentAddressNode.ethrDid.did)
+    const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.address)
+
+    this.setState(({
+      didOwner: newDidOwner,
+      didDocument: newDidDocument,
+      didHistory: newDidHistory
+    }))
+  }
+
+  async setAttribute() {
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    if(!currentAddressNode || !this.attrKey.value || !this.attrKey.value) return
+
+    const rawTx = await currentAddressNode.ethrDid.setAttributeTx(this.attrKey.value, this.attrValue.value)
+    const sendTxFunctions = await currentAddressNode.ethrDid.sendFundedTx(rawTx, 'setAttribute')
+    await this.execSendTxSequence(sendTxFunctions)
+
+    const newDidDocument = await resolve(currentAddressNode.ethrDid.did)
+    const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.address)
+
+    this.setState(({
+      didDocument: newDidDocument,
+      didHistory: newDidHistory
+    }))
+  }
+
+  async addSigningDelegate() {
+    const currentAddressNode = this.getCurrentAddressNode()
+
+    const {rawTx} = await currentAddressNode.ethrDid.addSigningDelegateTx()
+    const sendTxFunctions = await currentAddressNode.ethrDid.sendFundedTx(rawTx, 'addDelegate')
+    await this.execSendTxSequence(sendTxFunctions)
+
+    const newDidDocument = await resolve(currentAddressNode.ethrDid.did)
+    const newDidHistory = await EthrDID.getDidEventHistory(currentAddressNode.address)
+
+    this.setState(({
+      didDocument: newDidDocument,
+      didHistory: newDidHistory
+    }))
+  }
+
+  selectSignedJWT (signedJWT) {
+    const { currentMnemonic } = this.state
+
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || currentAddressNode.currentSignedJWT === signedJWT) return
+
+    currentAddressNode.currentSignedJWT = signedJWT
+
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) root.currentAddressNode = currentAddressNode
+        return root
+      })
+    }))
+  }
+  
   async signJWT() {
     const { currentMnemonic } = this.state
 
@@ -272,49 +328,20 @@ class App extends Component {
 
     try {
       const verifiedJWT = await currentAddressNode.ethrDid.verifyJWT(currentAddressNode.currentSignedJWT)
-      this.setState({ verifiedJWT })
+
+      const claims = Object.entries(verifiedJWT.payload).reduce((res, [key, value]) => {
+        console.log(res)
+        console.log(key, value)
+        console.log(parseInt(key) === NaN)
+        return parseInt('iat') === NaN ? res : res + value
+      }, '')
+      console.log(claims)
+
+      this.setState({ verifiedJWT: claims })
     }
     catch (err) {
       throw err
     }
-  }
-
-  selectSignedJWT(signedJWT) {
-    const { currentMnemonic } = this.state
-
-    const currentAddressNode = this.getCurrentAddressNode()
-    if(!currentAddressNode || currentAddressNode.currentSignedJWT === signedJWT) return
-
-    currentAddressNode.currentSignedJWT = signedJWT
-
-    this.setState(prevState => ({
-      roots: prevState.roots.map(root => {
-        if(root.mnemonic === currentMnemonic) root.currentAddressNode = currentAddressNode
-        return root
-      })
-    }))
-  }
-
-  checkTxStatusAndRender(status) {
-    let el
-
-    class StatusEl extends Component {
-      constructor(props) {
-        super(props)
-        const statusMess = !(status instanceof Promise) && (status ? 'success' : 'failed')
-        this.state = { status: statusMess || '' }
-      }
-      render() {
-        return (
-          <span className={`${this.state.status === 'success' ? 'green' : 'red'}`}>{this.state.status}</span>
-        )
-      }
-    }
-
-    const StatusElement = <StatusEl ref={ref => {el = ref}}/>
-
-    if(status instanceof Promise) status.then(res => el.setState({status: 'success'}), err => el.setState({status: 'failed'}))
-    return StatusElement
   }
 
   render() {
@@ -356,7 +383,7 @@ class App extends Component {
           <div className="selected-did">
             <span>Selected DID:</span>
             <div className="did">
-              { currentAddressNode ? this.did(currentAddressNode.wallet.address) : 'No DID selected' }
+              { currentAddressNode ? this.did(currentAddressNode.address) : 'No DID selected' }
             </div>
           </div>
 
@@ -390,7 +417,25 @@ class App extends Component {
               </div>
             </div>
 
-            <div className="w-50 did-common">
+            <div className="w-25 did-common">
+              <div className="common-line title">Wallet</div>
+              <div className="wrap">
+                {
+                  currentRoot 
+                  && currentRoot.addressNodes 
+                  && currentRoot.addressNodes.map(addressNode =>
+                    <div
+                      key={addressNode.address}
+                      className={`did-item common-line ${addressNode === currentRoot.currentAddressNode ? 'selected' : ''}`}
+                      onClick={() => this.selectAddress(addressNode)}>
+                      {addressNode.address}
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+              <div className="w-25 did-common">
               <div className="common-line title">DID</div>
               <div className="wrap">
                 {
@@ -398,15 +443,16 @@ class App extends Component {
                   && currentRoot.addressNodes 
                   && currentRoot.addressNodes.map(addressNode =>
                     <div
-                      key={addressNode.wallet.address}
+                      key={addressNode.address}
                       className={`did-item common-line ${addressNode === currentRoot.currentAddressNode ? 'selected' : ''}`}
                       onClick={() => this.selectAddress(addressNode)}>
-                      {this.did(addressNode.wallet.address)}
+                      {this.did(addressNode.address)}
                     </div>
                   )
                 }
               </div>
             </div>
+
           </div>
 
         </div>
@@ -425,12 +471,9 @@ class App extends Component {
             <div className="common-line title">DID audit trail</div>
             <div className="wrap">
               { 
-                currentRoot 
-                && currentRoot.currentAddressNode
-                && currentRoot.currentAddressNode.wallet.address
-                && didHistory.map(item => (
-                  <div key={item} className={`did-item common-line dflex`}>
-                    <span className="m-r-10">{App.getFormattedTime(item.timestamp)}</span>
+                didHistory && didHistory.map(item => (
+                  <div key={item.timestamp} className={`did-item common-line dflex`}>
+                    <span className="m-r-10">{getFormattedTime(item.timestamp)}</span>
                     <span className="m-r-10">{item.event._eventName}</span>
                     {
                       item.event._eventName === 'DIDOwnerChanged'
@@ -440,7 +483,7 @@ class App extends Component {
                       item.event._eventName === 'DIDAttributeChanged'
                       && <Fragment>
                         <span className="m-r-10">{bytes32toString(item.event.name)}</span>
-                        <span>{bytes32toString(item.event.value)}</span>
+                        <span>{hexToAttribute(bytes32toString(item.event.name), item.event.value)}</span>
                       </Fragment>
                     }
                   </div>
@@ -466,13 +509,20 @@ class App extends Component {
             <div className="wrap">
               {
                 currentAddressNode && currentAddressNode.txResults.map(txResult =>
-                  <div className="dflex jcsb did-item common-line" key={txResult.txHash}>
+                  <div key={txResult.txHash} className="dflex jcsb did-item common-line">
                     <a
                       href={`${etherscanBaseUrl}/${txResult.txHash}`}
                       target="_blank">
                       {txResult.txHash}
                     </a>
-                    { this.checkTxStatusAndRender(txResult.txStatus) }
+                    <span>{startCase(txResult.txName)}</span>
+                    { 
+                      txResult.txStatus instanceof Promise 
+                        ? <span className={'grey'}>{'Pending'}</span>
+                        : <span className={`${txResult.txStatus ? 'green' : 'red'}`}>
+                            {txResult.txStatus ? 'Success' : 'Failed'}
+                          </span> 
+                    }
                   </div>
                 )
               }

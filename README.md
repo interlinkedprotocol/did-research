@@ -28,6 +28,23 @@ As a developer you might want to run the whole set of containers in Prod mode an
 
 Continue reading to see how to use `sp` script
 
+### Steps to get it running
+
+Check container status:
+- `docker ps`
+- `./sp ps all`
+- `./sp ps client`
+- `./sp ps geth`
+
+1. Run client in dev mode -> `./sp up client --dev`
+2. Access docker container console -> `./sp sh client`
+3. Start client inside docker container -> `npm start` and wait for client to start
+4. Open `localhost:8545` in your browser (edited)
+
+if need to kill some of our containers then use `./sp down {container name}` e.g. `./sp down client`
+if need to kill all our containers then use `./sp down all`
+if need to kill all docker containers on the machine then use `docker rm -f $(docker ps -a -q)`
+
 ### How it works
 
 When you run `./sp up client,geth` it will
