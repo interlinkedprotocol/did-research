@@ -1,0 +1,8 @@
+@startuml
+title Automatically-Issued Claim
+autonumber
+actor Holder
+Issuer -> Issuer : claim:buildClaim()
+Issuer -> Issuer : verifiedClaim:signClaim(Claim)
+Issuer -> Holder : sendClaim(VerifiedClaim)
+@enduml

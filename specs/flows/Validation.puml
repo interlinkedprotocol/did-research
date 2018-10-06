@@ -1,0 +1,16 @@
+@startuml
+title Validating A Claim
+autonumber
+actor Holder
+participant "Service Endpoint" as SE
+participant "Service Provider/Verifier" as SP
+SP -> SP: trustedPKs[]:buildTrustedIssuersList()
+Holder -> SP: requestServiceAccess(did, accessRights)
+SP -> SP: resolveDDO_Holder()
+SE <- SP: requestClaims(did, accessRights)
+SE -> SP: sendClaim(claim)
+SP -> SP: ddo:resolveDDO_Issuer(claim)
+SP -> SP: recoveredAddress:extractAddress(ddo)
+SP -> SP: matchPK(recoveredAddress, trustedPKs[])
+SP -> Holder : sendAccessToken(accessToken)
+@enduml
