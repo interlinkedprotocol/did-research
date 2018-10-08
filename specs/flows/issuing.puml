@@ -1,0 +1,7 @@
+@startuml
+title Issuing A Claim
+autonumber
+actor Holder
+Holder -> Issuer : requestClaim()
+Issuer -> Holder : sendClaim(claim)
+@enduml
