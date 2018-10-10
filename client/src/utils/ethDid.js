@@ -1,6 +1,7 @@
 // import { Buffer } from 'buffer'
 import { ec as EC } from 'elliptic'
-import { stringToBytes32, delegateTypes, REGISTRY } from 'ethr-did-resolver'
+// import { stringToBytes32, delegateTypes, REGISTRY } from 'ethr-did-resolver'
+import { stringToBytes32, delegateTypes } from 'ethr-did-resolver'
 import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 import { createJWT, verifyJWT, SimpleSigner } from 'did-jwt'
 import { toEthereumAddress } from 'did-jwt/lib/Digest'
@@ -11,6 +12,8 @@ import { didRegistryInstance } from './RegistryContract'
 import { sendFundedTransaction } from './sendTransaction'
 
 const secp256k1 = new EC('secp256k1')
+export const REGISTRY = '0x7797c955f91f985b249103d7038e21b3412e72e2'
+
 // const { Secp256k1VerificationKey2018 } = delegateTypes
 //
 // function attributeToHex (key, value) {

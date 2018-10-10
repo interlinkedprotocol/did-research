@@ -6,7 +6,8 @@ import EthContract from 'ethjs-contract'
 import DidRegistryContract from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 import { Buffer } from 'buffer'
 import { ethInstance } from './connect'
-export const REGISTRY = '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b'
+// export const REGISTRY = '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b'
+export const REGISTRY = '0x7797c955f91f985b249103d7038e21b3412e72e2'
 
 export function bytes32toString (bytes32) {
   return Buffer.from(bytes32.slice(2), 'hex').toString('utf8').replace(/\0+$/, '')

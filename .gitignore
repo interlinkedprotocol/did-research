@@ -21,3 +21,7 @@ yarn-error.log*
 # client
 client/node_modules
 client/build
+
+# geth
+geth/bdata*
+geth/docker-compose.yml
