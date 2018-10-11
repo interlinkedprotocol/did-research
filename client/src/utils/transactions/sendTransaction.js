@@ -39,8 +39,14 @@ export async function calcExtraFundsRequired (senderAddress, amountWei) {
 
 export const signTx = (privateKey, rawTx) => sign(rawTx, privateKey)
 
-export async function sendTx (sigHex) {
+export async function sendRawTx (sigHex) {
   const txHash = await ethInstance.sendRawTransaction(sigHex)
+  const txStatus = waitBlock(txHash)
+  return { txHash, txStatus }
+}
+
+export async function sendTx (tx) {
+  const txHash = await ethInstance.sendTransaction(tx)
   const txStatus = waitBlock(txHash)
   return { txHash, txStatus }
 }

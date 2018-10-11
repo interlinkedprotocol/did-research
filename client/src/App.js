@@ -14,7 +14,7 @@ import { ethInstance, etherscanBaseUrl } from './utils/connect'
 import { waitBlock } from './utils/transactions/waitBlock'
 import { asyncForEach } from './utils/asyncForEach'
 
-import logo from './logo.png';
+import logo from './logo.svg';
 import './App.css';
 
 class App extends Component {

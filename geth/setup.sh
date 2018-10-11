@@ -86,9 +86,10 @@ done
 
 cat >> genesis.json <<EOF
   },
-  "chainId": 783,
   "coinbase": "0x0000000000000000000000000000000000000000",
   "config": {
+    "chainId": 783,
+    "byzantiumBlock": 0,
     "homesteadBlock": 0
   },
   "difficulty": "0x0",

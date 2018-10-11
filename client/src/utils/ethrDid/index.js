@@ -4,15 +4,16 @@ import { logDecoder } from 'ethjs-abi'
 import { fromWei } from 'ethjs-unit'
 import { toEthereumAddress } from 'did-jwt/lib/Digest'
 import { createJWT, verifyJWT, SimpleSigner } from 'did-jwt'
-import { stringToBytes32, delegateTypes, REGISTRY } from 'ethr-did-resolver'
+import { stringToBytes32, delegateTypes } from 'ethr-did-resolver'
 import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 
 import { ethInstance } from '../connect'
 import { didRegistryInstance } from './RegistryContract'
 import { getUpfrontCost } from '../transactions/estimateTransaction'
-import { sendTx, signTx, calcExtraFundsRequired, getRawTx } from '../transactions/sendTransaction'
+import { sendTx, sendRawTx, signTx, calcExtraFundsRequired, getRawTx } from '../transactions/sendTransaction'
 import { attributeToHex } from './formatting'
 
+export const REGISTRY = '0xb4a20951974be9ec1ea54bb04b646f113f649b82'
 const DONATOR_MNEMONIC = 'wire lounge raccoon wise autumn utility face measure cliff aspect inspire sport'
 
 const secp256k1 = new EC('secp256k1')
@@ -82,17 +83,16 @@ class EthrDID {
 
     // TODO: REVIEW
     const donatorAddressNode = HDNode.fromMnemonic(DONATOR_MNEMONIC).derivePath(`m/44'/60'/0'/0/0`)
-    this.donatorAddress = new Wallet(donatorAddressNode.privateKey).address
+    // this.donatorAddress = new Wallet(donatorAddressNode.privateKey).address
+    this.donatorAddress = '0x4b6c4e14508e4558652bc8500f666d4faf2bb240'
 
     // TODO: REVIEW
-    this.withPrivateKeyOfDonator = callback => (...args) => {
-      return callback(donatorAddressNode.privateKey, ...args)
-    }
+    this.withPrivateKeyOfDonator = callback => (...args) => callback(donatorAddressNode.privateKey, ...args)
   }
 
   async sendSignedTx (rawTx) {
     const sigHex = await this.withPrivateKeyOfCurrentWallet(signTx)(rawTx)
-    return sendTx(sigHex)
+    return sendRawTx(sigHex)
   }
 
   async sendFundedTx (rawTx, methodName) {
@@ -108,8 +108,8 @@ class EthrDID {
           to: rawTx.from,
           value: extra
         })
-        const sigHex = await this.withPrivateKeyOfDonator(signTx)(tx)
-        sendTxFunctions.push({ name: `Providing extra funds required for execution of ${methodName}`, func: () => sendTx(sigHex) })
+        // const sigHex = await this.withPrivateKeyOfDonator(signTx)(tx)
+        sendTxFunctions.push({ name: `Providing extra funds required for execution of ${methodName}`, func: () => sendTx(tx) })
       } else {
         throw new Error(
           `Requested extra funds ${fromWei(extra, 'ether')} Eth is above Donator's balance ${fromWei(donatorBalance, 'ether')} Eth`

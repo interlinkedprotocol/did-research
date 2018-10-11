@@ -68,6 +68,6 @@ export function hexToAttribute (key, value) {
   return value
 }
 
-export const privateKeyToEthereumAddress = (privateKey) => `0x${privateToAddress(privateKey).toString('hex')}`
+export const privateKeyToEthereumAddress = privateKey => `0x${privateToAddress(privateKey).toString('hex')}`
 
 export const publicKeyToEthereumAddress = (publicKey) => `0x${pubToAddress(publicKey).toString('hex')}`
