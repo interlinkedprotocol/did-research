@@ -11,6 +11,7 @@ import { didRegistryInstance } from './RegistryContract'
 import { sendFundedTransaction } from './sendTransaction'
 
 const secp256k1 = new EC('secp256k1')
+
 // const { Secp256k1VerificationKey2018 } = delegateTypes
 //
 // function attributeToHex (key, value) {
