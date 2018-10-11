@@ -1,0 +1,14 @@
+@startuml
+title Storing A Claim With Reference Sent To The Holder
+autonumber
+actor Holder
+participant "Service Endpoint" as SE
+participant Blockchain order -1
+Blockchain <- Holder : setServiceEP()
+Holder -> Holder : resolveDDO()
+Holder -> Holder : resolveSEP()
+Holder -> SE : storeClaim(claim)
+SE -> IPFS : storeClaim(claim)
+SE <- IPFS : returnHash(hash)
+Holder <- SE : returnHash(hash)
+@enduml

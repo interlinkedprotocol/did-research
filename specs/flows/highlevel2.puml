@@ -1,0 +1,9 @@
+@startuml
+title Claim Request Without Claim
+autonumber
+actor Holder
+Holder -> Issuer : requestClaim()
+Issuer -> Issuer : claim:buildClaim()
+Issuer -> Issuer : verifiedClaim:signClaim(claim)
+Issuer -> Holder : sendClaim(claim)
+@enduml
