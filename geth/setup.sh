@@ -125,7 +125,7 @@ rm -rf genesis.json static-nodes.json
 ##### Create the docker-compose file ####################################
 
 cat > docker-compose.yml <<EOF
-version: '2'
+version: '3.4'
 services:
 EOF
 
@@ -142,7 +142,7 @@ do
       - '~/.ethereum:/.ethereum'
       - '~/.ethash:/.ethash'
     networks:
-      interlink:
+      interlink-net:
         ipv4_address: '$ip'
     ports:
       - "$((n+22000)):8545"
@@ -155,11 +155,8 @@ done
 cat >> docker-compose.yml <<EOF
 
 networks:
-  interlink:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-      - subnet: $subnet
+  interlink-net:
+    external:
+      name: interlink
 EOF
 

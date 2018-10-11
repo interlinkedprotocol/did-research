@@ -5,7 +5,7 @@ services:
   geth:
     image: interlink-geth
     build:
-      context: ./geth
+      context: ./temp
     container_name: interlink-geth
     restart: always
     command: nohup geth --testnet --rpc --rpcapi 'admin,miner,eth,net,web3,personal' --rpccorsdomain '*' --rpcaddr 0.0.0.0 --rpcport 8545 --fast
