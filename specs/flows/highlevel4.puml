@@ -1,0 +1,7 @@
+@startuml
+title Self-Issued Claim
+autonumber
+actor Holder
+Holder -> Holder : claim:buildClaim()
+Holder -> Holder : signedClaim:signClaim(claim)
+@enduml

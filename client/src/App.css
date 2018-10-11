@@ -132,6 +132,10 @@
   width: 50%;
 }
 
+.w-25 {
+  width: 25%;
+}
+
 .dflex {
   display: flex;
 }
@@ -142,6 +146,10 @@
 
 .green {
   color: green;
+}
+
+.grey {
+  color: grey;
 }
 
 .red {

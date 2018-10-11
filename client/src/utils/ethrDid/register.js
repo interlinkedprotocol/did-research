@@ -1,11 +1,13 @@
 import { registerMethod } from 'did-resolver'
-import HttpProvider from 'ethjs-provider-http'
+// import HttpProvider from 'ethjs-provider-http'
 import abi from 'ethjs-abi'
 import BN from 'bn.js'
 import EthContract from 'ethjs-contract'
 import DidRegistryContract from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 import { Buffer } from 'buffer'
-import { ethInstance } from './connect'
+
+import { ethInstance } from '../connect'
+
 export const REGISTRY = '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b'
 
 export function bytes32toString (bytes32) {
@@ -33,8 +35,8 @@ export function wrapDidDocument (did, owner, history) {
   const publicKey = [{
     id: `${did}#owner`,
     type: 'Secp256k1VerificationKey2018',
-    owner: did,
-    ethereumAddress: owner
+    owner: `did:ethr:${owner}`,
+    ethereumAddress: owner 
   }]
 
   const authentication = [{
@@ -46,7 +48,6 @@ export function wrapDidDocument (did, owner, history) {
   const auth = {}
   const pks = {}
   const services = {}
-  console.log(history);
   for (let event of history) {
     let validTo = event.validTo
     const key = `${event._eventName}-${event.delegateType || event.name}-${event.delegate || event.value}`
@@ -64,19 +65,23 @@ export function wrapDidDocument (did, owner, history) {
             pks[key] = {
               id: `${did}#delegate-${delegateCount}`,
               type: 'Secp256k1VerificationKey2018',
-              owner: did,
+              owner: `did:ethr:${owner}`,
               ethereumAddress: event.delegate
             }
             break
+          default: {
+            throw new Error(`delegateType '${delegateType}' is not defined`)
+          }
         }
       } else if (event._eventName === 'DIDAttributeChanged') {
         const name = bytes32toString(event.name)
-        const match = name.match(/^did\/(pub|auth|svc)\/(\w+)(\/(\w+))?(\/(\w+))?$/)
+        const match = name.match(/^did\/(pub|auth|svc)\/(\w+)(\/(\w+))?(\/(\w+))?(\/(\w+))?$/)
         if (match) {
           const section = match[1]
           const algo = match[2]
           const type = attrTypes[match[4]] || match[4]
           const encoding = match[6]
+          const xxx = match[8]
 
           switch (section) {
             case 'pub':
@@ -106,6 +111,20 @@ export function wrapDidDocument (did, owner, history) {
             case 'svc':
               services[key] = {type: algo, serviceEndpoint: Buffer.from(event.value.slice(2), 'hex').toString()}
               break
+            case 'auth':
+              const authPK = `did:ethr:${event.value}#${xxx}`
+              const existingPK = Object.keys(pks).find(key => pks[key].id === authPK)
+              if (existingPK) {
+                const authItem = {
+                  type: algo,
+                  publicKey: authPK
+                }
+                auth[key] = authItem
+              }
+              break
+            default: {
+              throw new Error(`DID document section '${section}' is not defined`)
+            }
           }
         }
       }
@@ -130,6 +149,7 @@ export function wrapDidDocument (did, owner, history) {
   return doc
 }
 
+/*
 function configureProvider (conf = {}) {
   if (conf.provider) {
     return conf.provider
@@ -139,9 +159,10 @@ function configureProvider (conf = {}) {
     return new HttpProvider(conf.rpcUrl || 'https://mainnet.infura.io/ethr-did')
   }
 }
+*/
 
 export default function register (conf = {}) {
-  const provider = configureProvider(conf)
+  // const provider = configureProvider(conf)
   const registryAddress = conf.registry || REGISTRY
   const DidReg = new EthContract(ethInstance)(DidRegistryContract)
   const didReg = DidReg.at(registryAddress)
@@ -156,12 +177,9 @@ export default function register (conf = {}) {
   async function changeLog (identity) {
     const history = []
     let previousChange = await lastChanged(identity)
-    console.log(registryAddress, `0x000000000000000000000000${identity.slice(2)}`, );
     while (previousChange) {
       const logs = await ethInstance.getLogs({address: registryAddress, topics: [null, `0x000000000000000000000000${identity.slice(2)}`], fromBlock: previousChange, toBlock: previousChange})
-      console.log(logs);
       const events = logDecoder(logs)
-      console.log(events);
       previousChange = undefined
       for (let event of events) {
         history.unshift(event)
