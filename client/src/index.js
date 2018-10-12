@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import registerResolver from './utils/ethrDid/register'
+import registerResolver from './utils/registry/resolver'
 
 import './index.css';
 import App from './App';

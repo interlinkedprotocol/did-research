@@ -2,7 +2,6 @@ import bs58 from 'bs58'
 import { Buffer } from 'buffer'
 import { privateToAddress, pubToAddress } from 'ethereumjs-util'
 
-
 export function attributeToHex (key, value) {
   if (Buffer.isBuffer(value)) {
     return `0x${value.toString('hex')}`
@@ -70,4 +69,4 @@ export function hexToAttribute (key, value) {
 
 export const privateKeyToEthereumAddress = privateKey => `0x${privateToAddress(privateKey).toString('hex')}`
 
-export const publicKeyToEthereumAddress = (publicKey) => `0x${pubToAddress(publicKey).toString('hex')}`
+export const publicKeyToEthereumAddress = publicKey => `0x${pubToAddress(publicKey).toString('hex')}`

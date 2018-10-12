@@ -1,0 +1,13 @@
+@startuml
+
+title Flow #1: Single DID for Agent. Step #2: Claim issuing.
+
+autonumber
+
+WebApp -> WebApp : Encode image to base64
+WebApp -> TensorFlowAgent : Request verifiable claims for encoded image
+TensorFlowAgent -> TensorFlowAgent : Image => TF algorithm => Raw claims as JSON object
+TensorFlowAgent -> TensorFlowAgent : Sign raw claims with privateKey (build did-jwt)
+TensorFlowAgent -> WebApp : Response with verifiable claim (did-jwt)
+
+@enduml

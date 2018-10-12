@@ -9,7 +9,7 @@ import { waitBlock } from './waitBlock'
 
 const TX_NO_BYTECODE = '0x'
 const TX_GAS_PRICE = toWei(100, 'gwei')
-const TX_GAS_LIMIT = 3000000
+const TX_GAS_LIMIT = 100000
 
 const getBytecode = (contractABI, methodName, params) => encodeMethod(find(contractABI, { name: methodName }), params)
 
@@ -39,14 +39,14 @@ export async function calcExtraFundsRequired (senderAddress, amountWei) {
 
 export const signTx = (privateKey, rawTx) => sign(rawTx, privateKey)
 
-export async function sendRawTx (sigHex) {
-  const txHash = await ethInstance.sendRawTransaction(sigHex)
+export async function sendTx (tx) {
+  const txHash = await ethInstance.sendTransaction(tx)
   const txStatus = waitBlock(txHash)
   return { txHash, txStatus }
 }
 
-export async function sendTx (tx) {
-  const txHash = await ethInstance.sendTransaction(tx)
+export async function sendRawTx (sigHex) {
+  const txHash = await ethInstance.sendRawTransaction(sigHex)
   const txStatus = waitBlock(txHash)
   return { txHash, txStatus }
 }

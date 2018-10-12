@@ -11,6 +11,8 @@ services:
     command: ${COMMAND:-nginx-fe}
     ports:
       - 3010:80
+    networks:
+      - interlink-net
     environment:
       - PORT=80
       - REACT_APP_NETWORK_HOST=$NETWORK_HOST
@@ -21,6 +23,6 @@ services:
       - ./tools/.bashrc:/root/.bashrc
 
 networks:
-  default:
+  interlink-net:
     external:
       name: interlink

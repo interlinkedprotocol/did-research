@@ -1,23 +1,19 @@
 import { ec as EC } from 'elliptic'
-import { HDNode, Wallet } from 'ethers'
-import { logDecoder } from 'ethjs-abi'
 import { fromWei } from 'ethjs-unit'
+import { logDecoder } from 'ethjs-abi'
 import { toEthereumAddress } from 'did-jwt/lib/Digest'
 import { createJWT, verifyJWT, SimpleSigner } from 'did-jwt'
 import { stringToBytes32, delegateTypes } from 'ethr-did-resolver'
 import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 
 import { ethInstance } from '../connect'
-import { didRegistryInstance } from './RegistryContract'
-import { getUpfrontCost } from '../transactions/estimateTransaction'
-import { sendTx, sendRawTx, signTx, calcExtraFundsRequired, getRawTx } from '../transactions/sendTransaction'
-import { attributeToHex } from './formatting'
-
-export const REGISTRY = '0xb4a20951974be9ec1ea54bb04b646f113f649b82'
-const DONATOR_MNEMONIC = 'wire lounge raccoon wise autumn utility face measure cliff aspect inspire sport'
+import { REGISTRY, didRegistryInstance, attributeToHex } from '.'
+import { getUpfrontCost, sendTx, sendRawTx, signTx, calcExtraFundsRequired, getRawTx } from '../transactions'
 
 const secp256k1 = new EC('secp256k1')
 const { Secp256k1VerificationKey2018 } = delegateTypes
+
+const DONATOR_ADDRESS = '0x9aa245936658b773928a2911ec2dae306f81f2f4'
 
 class EthrDID {
   commonTxData = {
@@ -72,7 +68,7 @@ class EthrDID {
   constructor (conf = {}) {
     if (!conf.address) throw new Error('No address is set for EthrDid')
 
-    this.address = conf.address.toLowerCase() // TODO: REVIEW, is it okay to use toLowerCase() here?
+    this.address = conf.address
     this.did = `did:ethr:${this.address}`
 
     if (conf.privateKey) {
@@ -80,14 +76,7 @@ class EthrDID {
     }
 
     this.withPrivateKeyOfCurrentWallet = callback => (...args) => callback(conf.privateKey, ...args)
-
-    // TODO: REVIEW
-    const donatorAddressNode = HDNode.fromMnemonic(DONATOR_MNEMONIC).derivePath(`m/44'/60'/0'/0/0`)
-    // this.donatorAddress = new Wallet(donatorAddressNode.privateKey).address
-    this.donatorAddress = '0x4b6c4e14508e4558652bc8500f666d4faf2bb240'
-
-    // TODO: REVIEW
-    this.withPrivateKeyOfDonator = callback => (...args) => callback(donatorAddressNode.privateKey, ...args)
+    // this.withPrivateKeyOfDonator = callback => (...args) => callback(donatorPrivateKey, ...args)
   }
 
   async sendSignedTx (rawTx) {
@@ -100,11 +89,11 @@ class EthrDID {
 
     const extra = await calcExtraFundsRequired(rawTx.from, getUpfrontCost(rawTx))
     if (extra) {
-      const donatorBalance = await ethInstance.getBalance(this.donatorAddress, 'latest')
+      const donatorBalance = await ethInstance.getBalance(DONATOR_ADDRESS, 'latest')
 
       if (donatorBalance.ucmp(extra) !== -1) {
         const tx = await getRawTx({
-          from: this.donatorAddress,
+          from: DONATOR_ADDRESS,
           to: rawTx.from,
           value: extra
         })

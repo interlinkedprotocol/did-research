@@ -57,7 +57,7 @@
   height: 400px;
 }
 
-.selected-mnemonic, .selected-did, .selected-did-owner, .selected-did-balance, .selected-signedJWT {
+.selected-mnemonic, .selected-did, .selected-did-owner, .selected-did-balance, .selected-signedJWT, .jwt-timestamp, .jwt-issuer {
   padding-bottom: 10px;
   display: flex;
   flex-direction: column;
@@ -65,17 +65,9 @@
   font-size: 10px;
 }
 
-.mnemonic, .did, .did-owner, .did-balance {
+.mnemonic, .did, .did-owner, .did-balance, .signedJWT {
   margin-top: 2px;
   font-size: 10px;
-  color: dodgerblue
-}
-
-.signedJWT {
-  width: 100%;
-  margin-top: 5px;
-  font-size: 14px;
-  word-wrap: break-word;
   color: dodgerblue
 }
 
@@ -101,6 +93,15 @@
   width: 100%;
   height: calc(100% - 40px);
   overflow: scroll;
+}
+
+.line {
+  width: calc(100% - 10px);
+  padding: 5px;
+  border-bottom: 1px solid #ccc;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .selected {
@@ -140,6 +141,18 @@
 
 .jcsb {
   justify-content: space-between;
+}
+
+.background-lightgreen {
+  background-color: lightgreen;
+}
+
+.background-lightgray {
+  background-color:lightgray;
+}
+
+.background-lightcoral {
+  background-color:lightcoral;
 }
 
 .green {

@@ -1,8 +1,28 @@
 #!/bin/bash
 
+#### Cleanup ###########################################################
+
+echo '[1] Running cleanup'
+
+./cleanup.sh
+
+
+#### Build docker image for geth nodes #################################
+
+echo '[2] Building docker image for geth nodes'
+
+image=geth-interlink
+
+docker build -t $image .
+
+
+#### Defining network config for docker subnet #########################
+
+
+echo '[3] Defining network config for docker subnet'
+
 subnet="10.0.0.0/24"
 ips=("10.0.0.11" "10.0.0.12" "10.0.0.13")
-image=geth-interlink
 
 nnodes=${#ips[@]}
 
@@ -12,15 +32,10 @@ then
     exit 1
 fi
 
-./cleanup.sh
 
-uid=`id -u`
-gid=`id -g`
-pwd=`pwd`
+#### Create directories for each node's data ###########################
 
-#### Create directories for each node's configuration ##################
-
-echo '[1] Configuring for '$nnodes' nodes.'
+echo '[4] Configuring for '$nnodes' nodes'
 
 n=1
 for ip in ${ips[*]}
@@ -35,7 +50,11 @@ done
 
 #### Make static-nodes.json and store keys #############################
 
-echo '[2] Creating Enodes and static-nodes.json.'
+echo '[5] Creating Enodes and static-nodes.json'
+
+uid=`id -u`
+gid=`id -g`
+pwd=`pwd`
 
 echo "[" > static-nodes.json
 n=1
@@ -57,7 +76,7 @@ echo "]" >> static-nodes.json
 
 #### Create accounts, keys and genesis.json file #######################
 
-echo '[3] Creating Ether accounts and genesis.json.'
+echo '[6] Creating Ether accounts and genesis.json'
 
 cat > genesis.json <<EOF
 {
@@ -103,9 +122,9 @@ cat >> genesis.json <<EOF
 EOF
 
 
-##### Complete each node's configuration ################################
+##### Complete each node's configuration ###############################
 
-echo '[4] finishing configuration.'
+echo '[7] finishing configuration'
 
 n=1
 for ip in ${ips[*]}
@@ -123,7 +142,7 @@ done
 rm -rf genesis.json static-nodes.json
 
 
-##### Create the docker-compose file ####################################
+##### Create the docker-compose file ###################################
 
 cat > docker-compose.yml <<EOF
 version: '3.4'
@@ -160,4 +179,3 @@ networks:
     external:
       name: interlink
 EOF
-
