@@ -1,19 +1,17 @@
 import React, { Component, Fragment } from 'react'
+import { startCase } from 'lodash'
 import { HDNode } from 'ethers'
 import bip39 from 'bip39'
-import { fromWei } from 'ethjs-unit'
-import { decodeJWT } from 'did-jwt'
-import { startCase } from 'lodash'
 import resolve from 'did-resolver'
+import { decodeJWT } from 'did-jwt'
+import { fromWei } from 'ethjs-unit'
 
-import EthrDID from './utils/ethrDid'
-import { bytes32toString } from './utils/ethrDid/register'
-import { extractClaims, extractTimestamp, extractIssuerDid } from './utils/did-jwt'
-import { hexToAttribute, privateKeyToEthereumAddress } from './utils/ethrDid/formatting'
-import { getFormattedTime } from './utils/formatting'
 import { ethInstance, etherscanBaseUrl } from './utils/connect'
-import { waitBlock } from './utils/transactions/waitBlock'
+import { EthrDID, bytes32toString, hexToAttribute, privateKeyToEthereumAddress  } from './utils/registry'
 import { asyncForEach } from './utils/asyncForEach'
+import { waitBlock } from './utils/transactions/waitBlock'
+import { extractClaims, extractTimestamp, extractIssuerDid } from './utils/did-jwt'
+import { getFormattedTime } from './utils/formatting'
 
 import logo from './logo.svg';
 import './App.css';

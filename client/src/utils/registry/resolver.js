@@ -1,15 +1,13 @@
+import BN from 'bn.js'
+import { Buffer } from 'buffer'
 import { registerMethod } from 'did-resolver'
 // import HttpProvider from 'ethjs-provider-http'
-import abi from 'ethjs-abi'
-import BN from 'bn.js'
 import EthContract from 'ethjs-contract'
+import abi from 'ethjs-abi'
 import DidRegistryContract from 'ethr-did-resolver/contracts/ethr-did-registry.json'
-import { Buffer } from 'buffer'
 
 import { ethInstance } from '../connect'
-
-const REGISTRY = '0x7efe81ac780cf454c610ef12cb8e52dbb12a57de'
-// export const REGISTRY = '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b'
+import { REGISTRY } from '.'
 
 export function bytes32toString (bytes32) {
   return Buffer.from(bytes32.slice(2), 'hex').toString('utf8').replace(/\0+$/, '')
@@ -162,7 +160,7 @@ function configureProvider (conf = {}) {
 }
 */
 
-export default function register (conf = {}) {
+function register (conf = {}) {
   // const provider = configureProvider(conf)
   const registryAddress = conf.registry || REGISTRY
   const DidReg = new EthContract(ethInstance)(DidRegistryContract)
@@ -198,4 +196,5 @@ export default function register (conf = {}) {
   registerMethod('ethr', resolve)
 }
 
+export default register
 // module.exports = register
