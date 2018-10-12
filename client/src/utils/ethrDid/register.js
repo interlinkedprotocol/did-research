@@ -8,7 +8,7 @@ import { Buffer } from 'buffer'
 
 import { ethInstance } from '../connect'
 
-const REGISTRY = '0xb4a20951974be9ec1ea54bb04b646f113f649b82'
+const REGISTRY = '0x7efe81ac780cf454c610ef12cb8e52dbb12a57de'
 // export const REGISTRY = '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b'
 
 export function bytes32toString (bytes32) {

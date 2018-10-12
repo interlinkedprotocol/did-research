@@ -13,7 +13,7 @@ import { getUpfrontCost } from '../transactions/estimateTransaction'
 import { sendTx, sendRawTx, signTx, calcExtraFundsRequired, getRawTx } from '../transactions/sendTransaction'
 import { attributeToHex } from './formatting'
 
-export const REGISTRY = '0xb4a20951974be9ec1ea54bb04b646f113f649b82'
+export const REGISTRY = '0x7efe81ac780cf454c610ef12cb8e52dbb12a57de'
 const DONATOR_MNEMONIC = 'wire lounge raccoon wise autumn utility face measure cliff aspect inspire sport'
 
 const secp256k1 = new EC('secp256k1')
@@ -84,7 +84,7 @@ class EthrDID {
     // TODO: REVIEW
     const donatorAddressNode = HDNode.fromMnemonic(DONATOR_MNEMONIC).derivePath(`m/44'/60'/0'/0/0`)
     // this.donatorAddress = new Wallet(donatorAddressNode.privateKey).address
-    this.donatorAddress = '0x4b6c4e14508e4558652bc8500f666d4faf2bb240'
+    this.donatorAddress = '0xe144b89442cafa41482b11269ef0a08ccd591de6'
 
     // TODO: REVIEW
     this.withPrivateKeyOfDonator = callback => (...args) => callback(donatorAddressNode.privateKey, ...args)

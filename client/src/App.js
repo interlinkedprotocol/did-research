@@ -8,6 +8,7 @@ import resolve from 'did-resolver'
 
 import EthrDID from './utils/ethrDid'
 import { bytes32toString } from './utils/ethrDid/register'
+import { extractClaims, extractTimestamp, extractIssuerDid } from './utils/did-jwt'
 import { hexToAttribute, privateKeyToEthereumAddress } from './utils/ethrDid/formatting'
 import { getFormattedTime } from './utils/formatting'
 import { ethInstance, etherscanBaseUrl } from './utils/connect'
@@ -28,8 +29,7 @@ class App extends Component {
       didDocument: null,
       didHistory: [],
       didBalance: null,
-      decodedJWT: null,
-      verifiedJWT: null
+      inputDidJWT: null
     }
   }
 
@@ -110,10 +110,9 @@ class App extends Component {
       privateKey: currentRoot.currentAddressNode.privateKey,
       address: currentRoot.currentAddressNode.address
     })
-    // currentRoot.currentAddressNode.ethrDid = new EthrDID(EthrDID.createKeyPair())
     currentRoot.currentAddressNode.txResults = []
-    currentRoot.currentAddressNode.signedJWTs = []
-    currentRoot.currentAddressNode.currentSignedJWT = null
+    currentRoot.currentAddressNode.didJWTs = []
+    currentRoot.currentAddressNode.currentDidJWT = null
 
     currentRoot.addressNodes.push(currentRoot.currentAddressNode)
 
@@ -270,13 +269,13 @@ class App extends Component {
     }))
   }
 
-  selectSignedJWT (signedJWT) {
+  selectSignedJWT (didJWT) {
     const { currentMnemonic } = this.state
 
     const currentAddressNode = this.getCurrentAddressNode()
-    if(!currentAddressNode || currentAddressNode.currentSignedJWT === signedJWT) return
+    if(!currentAddressNode || currentAddressNode.currentDidJWT.token === didJWT.token) return
 
-    currentAddressNode.currentSignedJWT = signedJWT
+    currentAddressNode.currentDidJWT = didJWT
 
     this.setState(prevState => ({
       roots: prevState.roots.map(root => {
@@ -290,58 +289,76 @@ class App extends Component {
     const { currentMnemonic } = this.state
 
     const currentAddressNode = this.getCurrentAddressNode()
-    if(!currentAddressNode || !this.rawJwt.value) return
+    if(!currentAddressNode || !this.rawJwt.value || !this.jwtLabel.value) return
 
-    try {
-      const signedJWT = await currentAddressNode.ethrDid.signJWT(this.rawJwt.value)
+    let didJWT = {}
+    didJWT.label = this.jwtLabel.value
+    didJWT.token = await currentAddressNode.ethrDid.signJWT(this.rawJwt.value)
+    didJWT.decoded = await decodeJWT(didJWT.token)
+    console.log('did-jwt content (decoded)', didJWT.decoded)
+    didJWT.issueDate = getFormattedTime(extractTimestamp(didJWT.decoded))
+    didJWT.issuer = extractIssuerDid(didJWT.decoded)
+    didJWT.claims = extractClaims(didJWT.decoded)
 
-      this.setState(prevState => ({
-        roots: prevState.roots.map(root => {
-          if(root.mnemonic === currentMnemonic) {
-            root.currentAddressNode.signedJWTs.push(signedJWT)
-            root.currentAddressNode.currentSignedJWT = signedJWT
-            root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
-          }
-          return root
-        })
-      }))
-    } catch (err) {
-      throw err
-    }
-  }
-
-  async decodeJWT() {
-    const currentAddressNode = this.getCurrentAddressNode()
-    if(!currentAddressNode || !currentAddressNode.currentSignedJWT) return
-
-    try {
-      const decodedJWT = await decodeJWT(currentAddressNode.currentSignedJWT)
-      this.setState({ decodedJWT })
-    } catch (err) {
-      throw err
-    }
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) {
+          root.currentAddressNode.didJWTs.push(didJWT)
+          root.currentAddressNode.currentDidJWT = didJWT
+          root.addressNodes.map(addrNode => addrNode.privateKey === currentAddressNode.privateKey ? root.currentAddressNode : addrNode)
+        }
+        return root
+      })
+    }))
   }
 
   async verifyJWT() {
     const currentAddressNode = this.getCurrentAddressNode()
-    if(!currentAddressNode || !currentAddressNode.currentSignedJWT) return
 
+    if(!currentAddressNode || !this.inputJwt.value) return
+
+    let inputDidJWT = {}
     try {
-      const verifiedJWT = await currentAddressNode.ethrDid.verifyJWT(currentAddressNode.currentSignedJWT)
-
-      const claims = Object.entries(verifiedJWT.payload).reduce((res, [key, value]) => {
-        console.log(res)
-        console.log(key, value)
-        console.log(parseInt(key) === NaN)
-        return parseInt('iat') === NaN ? res : res + value
-      }, '')
-      console.log(claims)
-
-      this.setState({ verifiedJWT: claims })
+      inputDidJWT.isValid = !!(await currentAddressNode.ethrDid.verifyJWT(this.inputJwt.value))
+      inputDidJWT.decoded = await decodeJWT(this.inputJwt.value)
+      console.log('did-jwt content (decoded)', inputDidJWT.decoded)
+      inputDidJWT.issueDate = getFormattedTime(extractTimestamp(inputDidJWT.decoded))
+      inputDidJWT.issuer = extractIssuerDid(inputDidJWT.decoded)
+      inputDidJWT.claims = extractClaims(inputDidJWT.decoded)
     }
-    catch (err) {
-      throw err
+    catch(e) {
+      console.log(e)
+      inputDidJWT.isValid = false
+      inputDidJWT.decoded = null
+      inputDidJWT.issueDate = null
+      inputDidJWT.issuer = null
+      inputDidJWT.claims = null
     }
+
+    this.setState({ inputDidJWT })
+  }
+
+  async verifySelectedJWT() {
+    const { currentMnemonic } = this.state
+
+    const currentAddressNode = this.getCurrentAddressNode()
+    if(!currentAddressNode || !currentAddressNode.currentDidJWT) return
+
+    const verifiedDidJWT = await currentAddressNode.ethrDid.verifyJWT(currentAddressNode.currentDidJWT.token)
+
+    this.setState(prevState => ({
+      roots: prevState.roots.map(root => {
+        if(root.mnemonic === currentMnemonic) {
+          root.currentAddressNode.currentDidJWT = { ...currentAddressNode.currentDidJWT, isValid: !!verifiedDidJWT }
+          root.addressNodes.map(addressNode => 
+            addressNode.publicKey === currentAddressNode.publicKey 
+              ? root.currentAddressNode
+              : addressNode
+            )
+        }
+        return root
+      })
+    }))
   }
 
   render() {
@@ -352,8 +369,7 @@ class App extends Component {
       didDocument,
       didBalance,
       didHistory,
-      decodedJWT,
-      verifiedJWT
+      inputDidJWT
     } = this.state;
 
     const currentRoot = roots.find(root => root.mnemonic === currentMnemonic)
@@ -481,10 +497,11 @@ class App extends Component {
                     }
                     {
                       item.event._eventName === 'DIDAttributeChanged'
-                      && <Fragment>
-                        <span className="m-r-10">{bytes32toString(item.event.name)}</span>
-                        <span>{hexToAttribute(bytes32toString(item.event.name), item.event.value)}</span>
-                      </Fragment>
+                      && 
+                        <Fragment>
+                          <span className="m-r-10">{bytes32toString(item.event.name)}</span>
+                          <span>{hexToAttribute(bytes32toString(item.event.name), item.event.value)}</span>
+                        </Fragment>
                     }
                   </div>
                 ))
@@ -532,51 +549,138 @@ class App extends Component {
 
         <div className="control">
           <button onClick={() => this.signJWT()}>Sign JWT</button>
+          <input ref={el => this.jwtLabel = el} type="text" />
           <input ref={el => this.rawJwt = el} type="text" />
 
-          <button onClick={() => this.decodeJWT()}>Decode JWT</button>
-          <button onClick={() => this.verifyJWT()}>Verify JWT</button>
+          <button onClick={() => this.verifySelectedJWT()}>Verify Selected JWT</button>
         </div>
 
         <div className="content">
+
           <div className="selected-signedJWT">
             <span>Selected Signed JWT:</span>
-            <div className="signedJWT">{ currentAddressNode ? currentAddressNode.currentSignedJWT : 'No Signed JWT selected' }</div>
+            <div className="signedJWT">
+              { 
+                (
+                  currentAddressNode
+                  && currentAddressNode.currentDidJWT 
+                  && currentAddressNode.currentDidJWT.token
+                )
+                  ? currentAddressNode.currentDidJWT.token
+                  : 'No Signed JWT selected' 
+              }
+            </div>
           </div>
+
           <div className="did-common">
             <div className="common-line title">Signed JWT</div>
             <div className="wrap">
               {
-                currentAddressNode && currentAddressNode.signedJWTs.map(signedJWT =>
+                currentAddressNode && currentAddressNode.didJWTs.map(didJWT =>
                   <div
-                    key={signedJWT}
-                    className={`node-mnemonics common-line ${currentAddressNode.currentSignedJWT === signedJWT ? 'selected' : ''}`}
-                    onClick={ () => this.selectSignedJWT(signedJWT) }>
-                    { signedJWT }
+                    key={didJWT.token}
+                    className={
+                      `
+                        dflex jcsb did-item common-line 
+                        ${currentAddressNode.currentDidJWT.token === didJWT.token ? 'selected' : ''} 
+                      `
+                    }
+                    onClick={ () => this.selectSignedJWT(didJWT) }>
+                    {
+                      <Fragment>
+                        <span className="m-r-10">{didJWT.issueDate}</span>
+                        <span className="m-r-10">{didJWT.issuer}</span>
+                        <span className="m-r-10">{didJWT.label}</span>
+                      </Fragment>
+                    }
                   </div>
                 )
               }
             </div>
           </div>
-        </div>
-        
-        <div className="content">
+
           <div className="did-common">
-            <div className="common-line title">Decoded JWT</div>
+            <div className="common-line title">Claims</div>
             <div className="wrap">
-              { decodedJWT && <pre>{ JSON.stringify(decodedJWT, null, 2) }</pre> }
+              {
+                currentAddressNode 
+                && currentAddressNode.currentDidJWT
+                &&
+                  <div
+                    key='claims' 
+                    className={
+                      `
+                        ${currentAddressNode.currentDidJWT.isValid === undefined 
+                          ? 'background-lightgrey'
+                          : currentAddressNode.currentDidJWT.isValid 
+                            ? 'background-lightgreen' 
+                            : 'background-lightcoral'
+                        }
+                      `
+                    }
+                  >
+                    { 
+                      currentAddressNode 
+                      && currentAddressNode.currentDidJWT
+                      && currentAddressNode.currentDidJWT.claims
+                      && <pre>{ JSON.stringify(currentAddressNode.currentDidJWT.claims, null, 2) }</pre>
+                    }
+                  </div>
+              }
             </div>
           </div>
+
         </div>
 
         <div className="content">
-          <div className="did-common">
-            <div className="common-line title">Verified JWT</div>
-            <div className="wrap">
-              { verifiedJWT && <pre>{ JSON.stringify(verifiedJWT, null, 2) }</pre> }
+        
+          <div className="control">
+            <div className={
+                `
+                  control ${inputDidJWT === null || inputDidJWT.isValid === null
+                    ? 'background-lightgrey'
+                    : inputDidJWT.isValid
+                      ? 'background-lightgreen' 
+                      : 'background-lightcoral'
+                  }
+                `
+              }
+            >
+              <input ref={el => this.inputJwt = el} type="text" />
+              <button onClick={() => this.verifyJWT()}>Verify JWT</button>
             </div>
           </div>
+
+          <div className="did-common">
+            <div className="common-line title">Claims</div>
+            <div className="wrap">
+              {
+                inputDidJWT !== null 
+                && inputDidJWT.isValid
+                && 
+                    <div key='claims' className={'dflex jcsb did-item common-line'}>
+                      {<pre>{ JSON.stringify(inputDidJWT.claims, null, 2) }</pre>}
+                    </div>
+              }
+              {
+                inputDidJWT !== null 
+                && inputDidJWT.isValid
+                && 
+                    <div key='claims' className={'dflex jcsb did-item common-line'}>
+                    {
+                      <Fragment>
+                        <span className="m-r-10">{inputDidJWT.issueDate}</span>
+                        <span className="m-r-10">{inputDidJWT.issuer}</span>
+                        <span className="m-r-10">{inputDidJWT.label}</span>
+                      </Fragment>
+                    }
+                  </div>
+              }
+            </div>
+          </div>
+
         </div>
+
       </div>
     );
   }
