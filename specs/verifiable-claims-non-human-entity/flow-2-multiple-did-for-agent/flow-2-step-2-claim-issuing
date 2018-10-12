@@ -1,6 +1,6 @@
 @startuml
 
-title Flow #1: Multiple pseudonymous DIDs for Agent. Step #2: Claim issuing.
+title Flow #2: Multiple pseudonymous DIDs for Agent. Step #2: Claim issuing.
 
 autonumber
 
