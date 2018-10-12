@@ -1,0 +1,13 @@
+@startuml
+
+title Flow #1: Multiple pseudonymous DIDs for Agent. Step #1: Identity provisioning.
+
+autonumber
+
+TensorFlowAgent -> InterlinkedProtocolAgent : Request Identity
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Generate Mnemonic
+InterlinkedProtocolAgent -> TensorFlowAgent : Response with Mnemonic
+TensorFlowAgent -> TensorFlowAgent : Store Mnemonic and index=0
+
+
+@enduml

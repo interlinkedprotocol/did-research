@@ -1,0 +1,19 @@
+@startuml
+
+title Flow #1: Multiple pseudonymous DIDs for Agent. Step #3: Claim verification.
+
+autonumber
+
+WebApp -> WebApp : Import DIDs to the list of trusted DIDs (optional)
+WebApp -> TensorFlowAgent : Request TensorFlowAgent's DID
+TensorFlowAgent -> InterlinkedProtocolAgent : Request one-time wallet by providing Mnemonic and index
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent :  Derive one-time wallet for Mnemonic and index
+InterlinkedProtocolAgent -> TensorFlowAgent : Response with TensorFlowAgent's DID
+TensorFlowAgent -> TensorFlowAgent : Increment and store index
+TensorFlowAgent -> WebApp : Response with TensorFlowAgent's DID
+WebApp -> WebApp : Import TensorFlowAgent's DID to the list of trusted DIDs
+WebApp -> WebApp : Validate did-jwt integrity by running did-jwt verification
+WebApp -> WebApp : Verify did-jwt issuer against the list of trusted DIDs (Q: how to prove relationship of two pseudomymous DIDs?)
+
+@enduml
+
