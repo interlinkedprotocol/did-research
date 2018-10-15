@@ -82,7 +82,7 @@ docker_compose_proxy () {
   # create docker network in which all our services will be running
   if [[ $1 = up ]] && ! (docker network ls | grep -q " interlink "); then
     echo -n "Creating new docker network 'interlink' ... "
-    docker network create interlink --subnet 10.0.0.0/24 --driver bridge && echo OK
+    docker network create interlink --subnet 10.0.1.0/24 --driver bridge && echo OK
   fi
 
   names="$2"

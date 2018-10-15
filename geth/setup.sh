@@ -9,11 +9,15 @@ echo '[1] Running cleanup'
 
 #### Build docker image for geth nodes #################################
 
-echo '[2] Building docker image for geth nodes'
+echo '[2] Building docker image if image does not exist'
 
 image=geth-interlink
 
-docker build -t $image .
+if [ -z $(docker images -q $image) ]
+then
+    echo "image does not exist, start building..."
+    docker build -t $image .
+fi
 
 
 #### Defining network config for docker subnet #########################
@@ -21,8 +25,8 @@ docker build -t $image .
 
 echo '[3] Defining network config for docker subnet'
 
-subnet="10.0.0.0/24"
-ips=("10.0.0.11" "10.0.0.12" "10.0.0.13")
+subnet="10.0.1.0/24"
+ips=("10.0.1.11" "10.0.1.12" "10.0.1.13")
 
 nnodes=${#ips[@]}
 
@@ -42,7 +46,8 @@ for ip in ${ips[*]}
 do
     bd=bdata_$n
     mkdir -p $bd/logs
-    mkdir -p $bd/data/geth
+    mkdir -p $bd/data/.ethereum
+    mkdir -p $bd/data/.ethash
 
     let n++
 done
@@ -159,8 +164,8 @@ do
     image: $image
     volumes:
       - './$bd:/bdata'
-      - '~/.ethereum:/.ethereum'
-      - '~/.ethash:/.ethash'
+      - './$bd/.ethereum:/.ethereum'
+      - './$bd/.ethash:/.ethash'
     networks:
       interlink-net:
         ipv4_address: '$ip'
