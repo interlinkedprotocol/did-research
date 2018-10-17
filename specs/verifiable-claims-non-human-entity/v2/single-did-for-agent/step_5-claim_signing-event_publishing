@@ -1,0 +1,12 @@
+@startuml
+
+title Step #5: Claim signing - event publishing
+
+autonumber
+
+WorkerEC2 -> WorkerEC2 : Create SNS topic for CLAIM SIGNING EVENTS
+WorkerEC2 -> DynamoDB : Request operation ids where Status=2
+DynamoDB -> WorkerEC2 : Response with operation ids
+WorkerEC2 -> SNS : Publish an events to SNS topic CLAIM SIGNING EVENTS (per each operation)
+
+@enduml
