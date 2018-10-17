@@ -1,0 +1,14 @@
+@startuml
+
+title Step #1: Identity provisioning
+
+autonumber
+
+TensorFlowAgent -> InterlinkedProtocolAgent : Call function to generate DID
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Generate keypair
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Calculate ethereum address
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Build DID address i.e. 'did:ethr:ethereumAddress'
+InterlinkedProtocolAgent -> TensorFlowAgent : Return created DID and supplementary details
+TensorFlowAgent -> TensorFlowAgent : Store DID and supplementary details
+
+@enduml

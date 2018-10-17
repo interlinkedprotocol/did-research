@@ -1,0 +1,16 @@
+@startuml
+
+title Step #4: Image recognition - event handling
+
+autonumber
+
+ImageRecognitionHandler_Lambda -> SQS : Create queue 
+ImageRecognitionHandler_Lambda -> SQS : Subscribe queue to SNS topic for IMAGE RECOGNITION EVENTS
+SQS -> ImageRecognitionHandler_Lambda : Incoming events that was published to SNS topic IMAGE RECOGNITION EVENTS
+ImageRecognitionHandler_Lambda -> DynamoDB : Request operation details by operation id from event
+DynamoDB -> ImageRecognitionHandler_Lambda : Response with operation details
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Throw if Status !== 1
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Run base64 image through image recognition algorithm
+ImageRecognitionHandler_Lambda -> DynamoDB : Update operation details (raw claims, Status=2) 
+
+@enduml

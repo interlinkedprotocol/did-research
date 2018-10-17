@@ -1,0 +1,12 @@
+@startuml
+
+title Step #4: Image recognition - event publishing
+
+autonumber
+
+WorkerEC2 -> WorkerEC2 : Create SNS topic for IMAGE RECOGNITION EVENTS
+WorkerEC2 -> DynamoDB : Request operation ids where Status=1
+DynamoDB -> WorkerEC2 : Response with operation ids
+WorkerEC2 -> SNS : Publish an events to SNS topic IMAGE RECOGNITION EVENTS (per each operation)
+
+@enduml
