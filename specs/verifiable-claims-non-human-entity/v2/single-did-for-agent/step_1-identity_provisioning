@@ -1,14 +1,15 @@
 @startuml
 
-title Step #1: Identity provisioning
+title Step #1: Identity provisioning (Goal: ImageRecognitionHandler_Lambda needs to know its DID)
 
 autonumber
 
-TensorFlowAgent -> InterlinkedProtocolAgent : Call function to generate DID
+ImageRecognitionHandler_Lambda -> InterlinkedProtocolAgent : Call function to generate DID
 InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Generate keypair
+InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Securely store keypair
 InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Calculate ethereum address
 InterlinkedProtocolAgent -> InterlinkedProtocolAgent : Build DID address i.e. 'did:ethr:ethereumAddress'
-InterlinkedProtocolAgent -> TensorFlowAgent : Return created DID and supplementary details
-TensorFlowAgent -> TensorFlowAgent : Store DID and supplementary details
+InterlinkedProtocolAgent -> ImageRecognitionHandler_Lambda : Return created DID
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Store DID (HOW ?)
 
 @enduml

@@ -11,6 +11,9 @@ ImageRecognitionHandler_Lambda -> DynamoDB : Request operation details by operat
 DynamoDB -> ImageRecognitionHandler_Lambda : Response with operation details
 ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Throw if Status !== 1
 ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Run base64 image through image recognition algorithm
-ImageRecognitionHandler_Lambda -> DynamoDB : Update operation details (raw claims, Status=2) 
+ImageRecognitionHandler_Lambda -> DynamoDB : Update operation details (raw claims, Status=2)
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Sign raw claims with private key (HOW DO WE GETTING IT ?)
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : Building did-jwt (DO WE NEED THIS ?)
+ImageRecognitionHandler_Lambda -> DynamoDB : Update operation details (did-jwt , Status=3)
 
 @enduml
