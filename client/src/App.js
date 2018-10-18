@@ -381,10 +381,18 @@ class App extends Component {
         </header>
 
         <div className="control">
-          <input ref={el => this.mnemonic = el} type="text" />
-          <button onClick={() => this.recoverHdWallet()}>Recover HD Wallet</button>
           <button onClick={ () => this.generateHdWallet() }>Generate HD Wallet</button>
+          <button onClick={() => this.recoverHdWallet()}>Recover HD Wallet</button>
+          <input ref={el => this.mnemonic = el} type="text" style={{ width:"800px" }} placeholder='Insert Mnemonic' defaultValue="maple leaf slender kite work lottery fashion joke box track want current" />
           <button onClick={ () => this.deriveChildWallet() }>Derive new DID</button>
+        </div>
+
+        <div className="control">
+          <button onClick={() => this.setAttribute()}>Set DID Attribute</button>
+          <input ref={el => this.attrKey = el} type="text" style={{ width:"600px" }} placeholder="Insert attribute key e.g. did/svc/example" defaultValue="did/svc/VehicleClaims" />
+          <input ref={el => this.attrValue = el} type="text" style={{ width:"600px" }} placeholder="Insert attribute value e.g. https://example.com"  defaultValue="https://vehicle.claims.net" />
+          <button onClick={() => this.changeDidOwner()}>Change DID Owner</button>
+          <input ref={el => this.newOwner = el} type="text" style={{ width:"600px" }} placeholder="Insert DID of a new owner" />
         </div>
 
         <div className="content">
@@ -508,16 +516,6 @@ class App extends Component {
           </div>
         </div>
 
-        <div className="control">
-          <button onClick={() => this.changeDidOwner()}>Change DID Owner</button>
-          <input ref={el => this.newOwner = el} type="text" />
-        </div>
-        <div className="control">
-          <button onClick={() => this.setAttribute()}>Set DID Attribute</button>
-          <input ref={el => this.attrKey = el} type="text" defaultValue="did/pub/Ed25519/veriKey/base64" />
-          <input ref={el => this.attrValue = el} type="text" defaultValue="Arl8MN52fwhM4wgBaO4pMFO6M7I11xFqMmPSnxRQk2tx" />
-        </div>
-
         <div className="content">
           <div className="did-common">
             <div className="common-line title">TX Hashes</div>
@@ -546,18 +544,17 @@ class App extends Component {
         </div>
 
         <div className="control">
-          <button onClick={() => this.signJWT()}>Sign JWT</button>
-          <input ref={el => this.jwtLabel = el} type="text" />
-          <input ref={el => this.rawJwt = el} type="text" />
-
-          <button onClick={() => this.verifySelectedJWT()}>Verify Selected JWT</button>
+          <input ref={el => this.jwtLabel = el} type="text" style={{ width:"300px" }} placeholder="Insert label for your claim" defaultValue="Fuel level sensor"/>
+          <input ref={el => this.rawJwt = el} type="text" style={{ width:"1500px" }} placeholder="Insert your claim" defaultValue='{ "created at": "08/10/2018 09:12:15", "created by": "did:ethr:0x1b94b563f3863e3cfff873fbcc8177d9c00057b7" }'/>
+          <button onClick={() => this.signJWT()}>Sign Claim</button>
+          <button onClick={() => this.verifySelectedJWT()}>Verify Selected Claim</button>
         </div>
 
         <div className="content">
 
           <div className="selected-signedJWT">
-            <span>Selected Signed JWT:</span>
-            <div className="signedJWT">
+            <span>Selected Claim (which is represented by DID JSON Web Token):</span>
+            <div className="signedJWT" style={{flex: 1, flexWrap: 'wrap'}}>
               { 
                 (
                   currentAddressNode
@@ -565,40 +562,13 @@ class App extends Component {
                   && currentAddressNode.currentDidJWT.token
                 )
                   ? currentAddressNode.currentDidJWT.token
-                  : 'No Signed JWT selected' 
+                  : 'No selected claim' 
               }
             </div>
           </div>
 
           <div className="did-common">
-            <div className="common-line title">Signed JWT</div>
-            <div className="wrap">
-              {
-                currentAddressNode && currentAddressNode.didJWTs.map(didJWT =>
-                  <div
-                    key={didJWT.token}
-                    className={
-                      `
-                        dflex jcsb did-item common-line 
-                        ${currentAddressNode.currentDidJWT.token === didJWT.token ? 'selected' : ''} 
-                      `
-                    }
-                    onClick={ () => this.selectSignedJWT(didJWT) }>
-                    {
-                      <Fragment>
-                        <span className="m-r-10">{didJWT.issueDate}</span>
-                        <span className="m-r-10">{didJWT.issuer}</span>
-                        <span className="m-r-10">{didJWT.label}</span>
-                      </Fragment>
-                    }
-                  </div>
-                )
-              }
-            </div>
-          </div>
-
-          <div className="did-common">
-            <div className="common-line title">Claims</div>
+            <div className="common-line title">Claim</div>
             <div className="wrap">
               {
                 currentAddressNode 
@@ -628,6 +598,33 @@ class App extends Component {
             </div>
           </div>
 
+          <div className="did-common">
+            <div className="common-line title">Claim Label / Issue Date / Issuer DID </div>
+            <div className="wrap">
+              {
+                currentAddressNode && currentAddressNode.didJWTs.map(didJWT =>
+                  <div
+                    key={didJWT.token}
+                    className={
+                      `
+                        dflex jcsb did-item common-line 
+                        ${currentAddressNode.currentDidJWT.token === didJWT.token ? 'selected' : ''} 
+                      `
+                    }
+                    onClick={ () => this.selectSignedJWT(didJWT) }>
+                    {
+                      <Fragment>
+                        <span className="m-r-10">{didJWT.label}</span>
+                        <span className="m-r-10">{didJWT.issueDate}</span>
+                        <span className="m-r-10">{didJWT.issuer}</span>
+                      </Fragment>
+                    }
+                  </div>
+                )
+              }
+            </div>
+          </div>
+
         </div>
 
         <div className="content">
@@ -644,32 +641,37 @@ class App extends Component {
                 `
               }
             >
-              <input ref={el => this.inputJwt = el} type="text" />
-              <button onClick={() => this.verifyJWT()}>Verify JWT</button>
+              <input ref={el => this.inputJwt = el} type="text" style={{ width:"2200px" }} placeholder='Insert DID JWT (Json Web Token)' />
+              <button onClick={() => this.verifyJWT()}>Verify Claim</button>
             </div>
           </div>
 
           <div className="did-common">
-            <div className="common-line title">Claims</div>
+            <div className="common-line title">Claim</div>
             <div className="wrap">
               {
                 inputDidJWT !== null 
                 && inputDidJWT.isValid
                 && 
-                    <div key='claims' className={'dflex jcsb did-item common-line'}>
+                    <div key='claims' className={'dflex jcsb did-item common-line selected'}>
                       {<pre>{ JSON.stringify(inputDidJWT.claims, null, 2) }</pre>}
                     </div>
               }
+            </div>
+          </div>
+
+          <div className="did-common">
+            <div className="common-line title">Issue Date / Issuer DID </div>
+            <div className="wrap">
               {
                 inputDidJWT !== null 
-                && inputDidJWT.isValid
-                && 
-                    <div key='claims' className={'dflex jcsb did-item common-line'}>
+                && inputDidJWT.isValid 
+                &&
+                  <div key={inputDidJWT.token} className={`dflex jcsb did-item common-line selected`}>
                     {
                       <Fragment>
                         <span className="m-r-10">{inputDidJWT.issueDate}</span>
                         <span className="m-r-10">{inputDidJWT.issuer}</span>
-                        <span className="m-r-10">{inputDidJWT.label}</span>
                       </Fragment>
                     }
                   </div>

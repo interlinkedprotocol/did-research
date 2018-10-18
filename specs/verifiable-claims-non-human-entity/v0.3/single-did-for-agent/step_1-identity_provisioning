@@ -1,0 +1,9 @@
+@startuml
+
+title Step #1: Identity provisioning
+
+autonumber
+
+ImageRecognitionHandler_Lambda -> ImageRecognitionHandler_Lambda : key pair is hard-coded
+
+@enduml

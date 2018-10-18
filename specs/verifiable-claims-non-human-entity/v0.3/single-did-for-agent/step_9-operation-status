@@ -1,0 +1,12 @@
+@startuml
+
+title Step #9: Operation status
+
+autonumber
+
+WebApp -> GetOperation_Lambda : Request operation status by id
+GetOperation_Lambda -> DynamoDB : Request operation status by id
+DynamoDB -> GetOperation_Lambda : Response with operation status
+GetOperation_Lambda -> WebApp : Response with operation status
+
+@enduml

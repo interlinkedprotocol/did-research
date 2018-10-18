@@ -13,7 +13,7 @@ import { getUpfrontCost, sendTx, sendRawTx, signTx, calcExtraFundsRequired, getR
 const secp256k1 = new EC('secp256k1')
 const { Secp256k1VerificationKey2018 } = delegateTypes
 
-const DONATOR_ADDRESS = '0x9aa245936658b773928a2911ec2dae306f81f2f4'
+const DONATOR_ADDRESS = '0x804c66ea1a844d6291188308e012d43a7ebeef2e'
 
 class EthrDID {
   commonTxData = {
@@ -98,7 +98,7 @@ class EthrDID {
           value: extra
         })
         // const sigHex = await this.withPrivateKeyOfDonator(signTx)(tx)
-        sendTxFunctions.push({ name: `Providing extra funds required for execution of ${methodName}`, func: () => sendTx(tx) })
+        sendTxFunctions.push({ name: `Providing funds for executing ${methodName} transaction`, func: () => sendTx(tx) })
       } else {
         throw new Error(
           `Requested extra funds ${fromWei(extra, 'ether')} Eth is above Donator's balance ${fromWei(donatorBalance, 'ether')} Eth`

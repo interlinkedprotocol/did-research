@@ -1,0 +1,12 @@
+@startuml
+
+title Step #2: Image provisioning
+
+autonumber
+
+WebApp -> WebApp : Encode image to base64
+WebApp -> PostOperation_Lambda : Request with encoded image
+PostOperation_Lambda -> DynamoDB : Add operation record (Status=1)
+PostOperation_Lambda -> WebApp : Response with operation id
+
+@enduml

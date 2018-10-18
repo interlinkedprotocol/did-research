@@ -1,0 +1,12 @@
+@startuml
+
+title Step #10: Claim downloading
+
+autonumber
+
+WebApp -> GetOperation_Lambda : Request raw claims | did-jwt by operation id
+GetOperation_Lambda -> DynamoDB : Request raw claims | did-jwt by operation id
+DynamoDB -> GetOperation_Lambda : Response with raw claims | did-jwt
+GetOperation_Lambda -> WebApp : Response with raw claims | did-jwt
+
+@enduml

@@ -4,5 +4,5 @@ import DidRegistryABI from 'ethr-did-resolver/contracts/ethr-did-registry.json'
 
 import { ethInstance } from '../connect'
 
-export const REGISTRY = '0x58a575d85afc18912ee1bdb1353871631dcdfa81'
+export const REGISTRY = '0xf8fffe208c2a2140c12eb1d152ad994a2c0cd292'
 export const didRegistryInstance = new EthContract(ethInstance)(DidRegistryABI).at(REGISTRY)

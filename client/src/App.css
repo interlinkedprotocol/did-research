@@ -166,3 +166,7 @@
 .red {
   color: red;
 }
+
+.prewrap {
+  white-space: pre-wrap
+}
