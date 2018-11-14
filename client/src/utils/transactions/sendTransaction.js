@@ -1,5 +1,5 @@
 import { encodeMethod } from 'ethjs-abi'
-import { toWei } from 'ethjs-unit'
+import {   } from 'ethjs-unit'
 import { sign } from 'ethjs-signer'
 import { find } from 'lodash'
 import { BN } from 'ethereumjs-util'
