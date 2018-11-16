@@ -93,7 +93,16 @@ class App extends Component {
       didBalance: null
     }))
   }
-
+//RICKY
+handleSubmit(event) {
+  event.preventDefault();
+  const data = new FormData(event.target);
+  
+  fetch('/api/form-submit-url', {
+    method: 'POST',
+    body: data,
+  });
+}//RICKY
   async deriveChildWallet() {
     const { currentMnemonic, roots, derivationPath } = this.state
 
@@ -379,7 +388,7 @@ class App extends Component {
           <img src={logo} className="App-logo" alt="logo" />
           <h1 className="App-title">DID demo</h1>
         </header>
-
+        <form onSubmit={this.handleSubmit}>
         <div className="control">
           <button onClick={ () => this.generateHdWallet() }>Generate HD Wallet</button>
           <button onClick={() => this.recoverHdWallet()}>Recover HD Wallet</button>
@@ -680,7 +689,8 @@ class App extends Component {
           </div>
 
         </div>
-
+        <button> send data</button>
+</form>
       </div>
     );
   }
